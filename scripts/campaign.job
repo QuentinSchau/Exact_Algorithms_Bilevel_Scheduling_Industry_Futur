@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# script provide by Ronan Bocquillon ronan.bocquillon@univ-tours.fr
+
+#SBATCH --job-name=BiScheduling
+#SBATCH --ntasks=104            # Number of tasks to be run in parallel.
+#SBATCH --cpus-per-task=1      # Number of cpu per running task.
+#SBATCH --mem-per-cpu=4G       # Memory per allocated cpu (so memory per task will be cpus-per-task * mem-per-cpu).
+#SBATCH --time=0-01:00:00      # Sets a limit on the total run time of the job.
+#SBATCH --mail-type=ALL
+if [ "$#" -eq 0 ]
+then
+	echo "Not enough argument." >&2
+	echo "Usage: sbatch $0 [--mail-user=MAIL] TASK_FILE [LOG_FILE]" >&2
+	exit 1
+fi
+TASK_FILE=$1
+RESUME=
+if ! [ -f $TASK_FILE ] || ! [ -r $TASK_FILE ]
+then
+	echo "$TASK_FILE does not exist or you cannot read it." >&2
+	exit 1
+fi
+if [ "$#" -ge 2 ]
+then
+	RESUME="--joblog $2 --resume"
+fi
+cat $TASK_FILE | parallel --delay 0.2 -j $SLURM_NTASKS $RESUME eval "srun --exclusive -N 1 -n 1 {}"

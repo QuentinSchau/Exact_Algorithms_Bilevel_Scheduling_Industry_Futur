@@ -1,0 +1,76 @@
+{
+  "solve": {
+    "verbose": 1,
+    "output": "./instances/performances/",
+    "methods": [
+      {
+        "name": "DP",
+        "memorySize": 30000,
+        "verbose": 1,
+        "timeLimits": 600,
+        "instances": [
+          {
+            "path": "./instances/test/instance0_n_8_N_16_tf_1.0_rdd_1.0_mMax_1_m0_1_Vmax_2.0_V0_1.0.txt"
+          },
+          {
+            "path": "./instances/test/instance1_n_8_N_16_tf_1.0_rdd_1.0_mMax_1_m0_1_Vmax_2.0_V0_1.0.txt"
+          }
+        ]
+      },
+      {
+        "name": "BF",
+        "verbose": 1,
+        "timeLimits": 600,
+        "instances": [
+          {
+            "path": "./instances/test/instance0_n_8_N_16_tf_1.0_rdd_1.0_mMax_1_m0_1_Vmax_2.0_V0_1.0.txt"
+          },
+          {
+            "path": "./instances/test/instance1_n_8_N_16_tf_1.0_rdd_1.0_mMax_1_m0_1_Vmax_2.0_V0_1.0.txt"
+          }
+        ]
+      },
+      {
+        "name": "MIP",
+        "verbose": 1,
+        "debug": false,
+        "relaxation": false,
+        "timeLimits": 600,
+        "instances": [
+          {
+            "path": "./instances/test/instance0_n_8_N_16_tf_1.0_rdd_1.0_mMax_1_m0_1_Vmax_2.0_V0_1.0.txt"
+          },
+          {
+            "path": "./instances/test/instance1_n_8_N_16_tf_1.0_rdd_1.0_mMax_1_m0_1_Vmax_2.0_V0_1.0.txt"
+          }
+        ]
+      },
+      {
+        "name": "BaB",
+        "LB_parameters": {
+          "name": "CG",
+          "verbose": 1,
+          "debug": false,
+          "gen_columns": 1,
+          "maxNbCallHeuristic": 1,
+          "nbMinStateDP": 1,
+          "thresholdSetCol": 0.9,
+          "nbTimeNotUsed": 20,
+          "timeLimits": 600
+        },
+        "verbose": 1,
+        "strategy": "breadth-first",
+        "memorization": true,
+        "timeLimits": 300,
+        "instances": [
+          {
+            "path": "./instances/test/instance0_n_8_N_16_tf_1.0_rdd_1.0_mMax_1_m0_1_Vmax_2.0_V0_1.0.txt"
+          },
+          {
+            "path": "./instances/test/instance1_n_8_N_16_tf_1.0_rdd_1.0_mMax_1_m0_1_Vmax_2.0_V0_1.0.txt"
+          }
+        ]
+      }
+    ]
+  }
+}
