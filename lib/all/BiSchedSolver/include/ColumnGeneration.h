@@ -28,6 +28,7 @@
 
 #include <ranges>
 #include "ISolver.h"
+#include "Heuristic.h"
 #include "ilconcert/ilomodel.h"
 #include "ilcplex/ilocplex.h"
 #include "BiSchException.h"
@@ -41,7 +42,7 @@
 class ColumnGeneration : public ISolver {
 private:
     #ifdef DEBUG_CG
-    unsigned int nbGen;
+    unsigned int nbGen =0;
     #endif
     double lowerBound; // Lower bound of the objective function
 
@@ -100,10 +101,12 @@ private:
     std::vector<ConstForIdenticalJobs> list_const_identical_job;
 
     // DSU (Disjoint Set Union) structure with number of identical jobs
-    DSU *dsu;
+    DSU *dsu = nullptr;
     std::vector<JumpPoint> listJumpPoint;
 
     /*      Heuristic      */
+
+    Heuristic heuristicSolver;
 
     // Vector to keep track of already explored jobs in estimation function
     std::vector<bool> alreadyExplored;
@@ -263,15 +266,15 @@ public:
 
     void setParameters(nlohmann::json &object);
 
-    void setDebug(bool isDebug) { ColumnGeneration::debug = isDebug; }
+    void setDebug(bool isDebug) { debug = isDebug; }
 
-    void setGenColumns(char methodToGenerateColumn) { ColumnGeneration::generate_Column = methodToGenerateColumn; }
+    void setGenColumns(char methodToGenerateColumn) { generate_Column = methodToGenerateColumn; }
 
-    void setMaxNbCallHeuristic(unsigned int maxNbCallHeuristic) { ColumnGeneration::maxNbCallHeuristic = maxNbCallHeuristic; }
+    void setMaxNbCallHeuristic(unsigned int newMaxNbCallHeuristic) { maxNbCallHeuristic = newMaxNbCallHeuristic; }
 
-    void setThresholdSetCol(double newThresholdSetCol) { ColumnGeneration::thresholdSetCol = newThresholdSetCol; }
+    void setThresholdSetCol(double newThresholdSetCol) { thresholdSetCol = newThresholdSetCol; }
 
-    void setNbTimeNotUsed(unsigned int newNbTimeNotUsed) { ColumnGeneration::nbTimeNotUsed = newNbTimeNotUsed; }
+    void setNbTimeNotUsed(unsigned int newNbTimeNotUsed) { nbTimeNotUsed = newNbTimeNotUsed; }
 
     void setNbMinStateDp(unsigned int nbMinStateDp) { nbMinStateDP = nbMinStateDp; }
 

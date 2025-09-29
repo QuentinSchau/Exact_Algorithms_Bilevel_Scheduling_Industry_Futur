@@ -49,8 +49,8 @@ inline void BranchAndBound::createChildrenNodeWithIdenticalJobs(Node &pNode) {
     #endif
 
     // take at least one jobs
-    for (unsigned int numberOfJobToSchedule = 1;
-         numberOfJobToSchedule <= numberIdenticalJobsInGroups; ++numberOfJobToSchedule) {
+    for (unsigned int numberOfJobToSchedule = 1; numberOfJobToSchedule <= numberIdenticalJobsInGroups; ++numberOfJobToSchedule) {
+        isWithinTimeLimit();
         // check if we respect the follower problem, i.e., we must select n jobs
         if (numberOfJobToSchedule + pNode.getSelectedJobCount() > instance->getNbToSelectJob()) break;
         // n_L the number of selected machine in the last block
@@ -65,9 +65,11 @@ inline void BranchAndBound::createChildrenNodeWithIdenticalJobs(Node &pNode) {
         } else setOfAssignmentOnFirstBlock.emplace();
 
         for (auto &assignmentFirstBlock: setOfAssignmentOnFirstBlock) {
+            isWithinTimeLimit();
             std::set<std::vector<unsigned int>> setOfAssignmentOnLastBlock;
             computeSetCombinationWithoutSymmetry(n_L, indexLastBlock, pNode, assignmentFirstBlock, setOfAssignmentOnLastBlock);
             for (auto &assignmentLastBlock: setOfAssignmentOnLastBlock) {
+                isWithinTimeLimit();
                 createNodeWithAssignment(pNode, indexLastBlock, assignmentLastBlock, assignmentFirstBlock);
             }
 
@@ -76,8 +78,7 @@ inline void BranchAndBound::createChildrenNodeWithIdenticalJobs(Node &pNode) {
 
 }
 
-inline std::pair<unsigned int, unsigned int>
-BranchAndBound::computeNumberJobsOnLastBlock(Node &pNode, unsigned int numberJobsToSchedule) {
+inline std::pair<unsigned int, unsigned int> BranchAndBound::computeNumberJobsOnLastBlock(Node &pNode, unsigned int numberJobsToSchedule) {
     unsigned int startIndexBlock = pNode.getIndexBlock();
     std::vector<unsigned int> availableMachines;
     availableMachines.reserve(numberJobsToSchedule);
@@ -101,6 +102,7 @@ BranchAndBound::computeNumberJobsOnLastBlock(Node &pNode, unsigned int numberJob
 
 inline void BranchAndBound::computeSetCombinationWithoutSymmetry(unsigned int nbSelect, unsigned int indexLastBlock, Node &node, const std::vector<unsigned int> &assigmentOnStartingBlock
                                                                  , std::set<std::vector<unsigned int>> &setOfAssignmentOnLastBlock) {
+    isWithinTimeLimit();
     // create vector for the assignment on the first block
     std::vector<unsigned int> assignmentOnFirstBlock;
     assignmentOnFirstBlock.reserve(instance->getE()[node.getIndexBlock()].size());
@@ -125,10 +127,10 @@ inline void BranchAndBound::computeSetCombinationWithoutSymmetry(unsigned int nb
     // index machine. The idea is to keep with this map the machines with same completion time on same speed.
     std::unordered_map<unsigned int, std::vector<unsigned int>> indexMachinesGroupByCompletionTime;
     for (auto &location: instance->getE()[indexLastBlock]) {
+        isWithinTimeLimit();
         // location = (index Machine, index Block)
         // in (Job, Ci) in block structure /!\ Ci in the blockStructure are already divided by the speed
-        double speed = (location.first < instance->getNbOfHighSpeedMachines()) ? instance->getHighSpeed()
-                                                                               : instance->getLowSpeed();
+        double speed = (location.first < instance->getNbOfHighSpeedMachines()) ? instance->getHighSpeed() : instance->getLowSpeed();
         auto locationAssigned = node.getBlockStruc()[location.first][location.second];
         // if we have null value for the pointer that means no job was schedule, in other words the location is available
         if (!locationAssigned.first) {
@@ -151,11 +153,10 @@ inline void BranchAndBound::computeSetCombinationWithoutSymmetry(unsigned int nb
                 auto locationLastScheduledJob = std::pair(location.first, 0);
                 while (!foundLastBlockIndex && indexBlockWithSameMachine > 0) {
                     // looking for the machine's index in the last block
-                    auto itLocationInBlockWithSameMachine = std::find_if(
-                            instance->getE()[indexBlockWithSameMachine].begin(), instance->getE()[indexBlockWithSameMachine].end(), predFindIndexMachine);
+                    auto itLocationInBlockWithSameMachine = std::find_if(instance->getE()[indexBlockWithSameMachine].begin(), instance->getE()[indexBlockWithSameMachine].end(), predFindIndexMachine);
                     // if we have machine's index in the block, and we have a job that is already scheduled
-                    if (itLocationInBlockWithSameMachine != instance->getE()[indexBlockWithSameMachine].end()
-                        && node.getBlockStruc()[itLocationInBlockWithSameMachine->first][itLocationInBlockWithSameMachine->second].first) {
+                    if (itLocationInBlockWithSameMachine != instance->getE()[indexBlockWithSameMachine].end() &&
+                        node.getBlockStruc()[itLocationInBlockWithSameMachine->first][itLocationInBlockWithSameMachine->second].first) {
                         locationLastScheduledJob = *itLocationInBlockWithSameMachine;
                         foundLastBlockIndex = true;
                     } else {
@@ -168,8 +169,7 @@ inline void BranchAndBound::computeSetCombinationWithoutSymmetry(unsigned int nb
                                                numberOfFilledBlock * pj); // get the completion time
             } else Ci = static_cast<unsigned int>(pj);
             // the key is the bijection N^2 -> N of (Ci, speed)
-            unsigned int keyCi = (location.first < instance->getNbOfHighSpeedMachines()) ? elegantPair(Ci, 0u)
-                                                                                         : elegantPair(Ci, 1u);
+            unsigned int keyCi = (location.first < instance->getNbOfHighSpeedMachines()) ? elegantPair(Ci, 0u) : elegantPair(Ci, 1u);
             auto itIndexMachineGroupByCi = indexMachinesGroupByCompletionTime.find(keyCi);
             if (itIndexMachineGroupByCi == indexMachinesGroupByCompletionTime.end())
                 indexMachinesGroupByCompletionTime.insert({keyCi, {location.first}});
@@ -185,6 +185,7 @@ inline void BranchAndBound::computeSetCombinationWithoutSymmetry(unsigned int nb
     findCombinations(availableCompletionTime, nbSelect, setOfCombinationFromCompletionTime);
     // Each combination contains elegant pair with completion time and the speed, we just want a combination of machine's index
     for (auto &combination: setOfCombinationFromCompletionTime) {
+        isWithinTimeLimit();
         // we use 'indexListMachineWithCi' that correspond of the index in the list of machine's index
         unsigned int indexListMachineWithCi = 0;
         std::vector<unsigned int> newCombinationWithMachineIndex(combination);
@@ -236,8 +237,8 @@ BranchAndBound::createNodeWithAssignment(Node &pNode, unsigned int indexLastBloc
     }
 
     while (cNode.getIndexBlock() < indexLastBlock) {
-
         for (auto &location: instance->getE()[cNode.getIndexBlock()]) {
+            isWithinTimeLimit();
             if (!cNode.getBlockStruc()[location.first][location.second].first) {
                 double machineSpeed = location.first < instance->getNbOfHighSpeedMachines() ? instance->getHighSpeed()
                                                                                             : instance->getLowSpeed();
@@ -255,6 +256,7 @@ BranchAndBound::createNodeWithAssignment(Node &pNode, unsigned int indexLastBloc
 
     // compute completion of the last block and from assignmentLastBlock
     for (unsigned int indexMachine: assignmentLastBlock) {
+        isWithinTimeLimit();
         auto predFindIndexMachine = [&indexMachine](std::pair<unsigned int, unsigned int> location) {
             return location.first == indexMachine;
         };
@@ -293,7 +295,7 @@ BranchAndBound::createNodeWithAssignment(Node &pNode, unsigned int indexLastBloc
 
     // use a copy of the list of grouped jobs, because this list is sorted according SPT-EDD
     std::vector<Job> listOfIdenticalJobs(instance->getListGrpJobs()[cNode.getIndexGroup()]);
-    solveProblemWithIdenticalJobs(&cNode, nullptr, listCjAndAvailablePosition, listOfIdenticalJobs);
+    solveProblemWithFixedCompletionTime(&cNode, nullptr, listCjAndAvailablePosition, listOfIdenticalJobs);
 
     // remove other jobs in the group
     for (auto &remainJob: listOfIdenticalJobs) {
@@ -369,7 +371,6 @@ inline void BranchAndBound::addNode(Node &node) {
         Solution solFromNode(instance);
         auto blockStruc = node.getBlockStruc();
         solFromNode.fromBlockStruct(blockStruc);
-        Heuristic heuristic(instance);
         std::vector<Job> listAvailableJob;
         listAvailableJob.reserve(instance->getNbJobs() - (node.getSelectedJobCount() + node.getRemovedJobsCount()));
         for (auto job: instance->getListJobs()) {
@@ -379,7 +380,7 @@ inline void BranchAndBound::addNode(Node &node) {
         }
 
         //here the method freeAndAssignmentBlock, is optimal for the last block since we solve an assignment problem with all available jobs on the last block
-        heuristic.freeAndAssignmentBlock(blockStruc, node.getIndexBlock(), &listAvailableJob);
+        heuristicSolver.freeAndAssignmentBlock(blockStruc, node.getIndexBlock(), &listAvailableJob);
         solFromNode.fromBlockStruct(blockStruc);
         if (solFromNode.feasible(instance)) {
             if (solFromNode.getSumWjUj() < globalUB) {
@@ -430,14 +431,7 @@ inline void BranchAndBound::addNode(Node &node) {
             *solution = *lbFromMIP.getSolution();
         }
     } else {
-        columnGeneration.setTimeElapsed(static_cast<unsigned int>(time_elapsed.count()));
-        try{
-            columnGeneration.solve(node);
-        } catch (const BiSchTimeOutException &e) {
-            this->setTimeElapsed(static_cast<unsigned int>(columnGeneration.getTimeElapsed().count()));
-            throw BiSchTimeOutException(e);
-        }
-        this->setTimeElapsed(static_cast<unsigned int>(columnGeneration.getTimeElapsed().count()));
+        columnGeneration.solve(node);
         lowerBound = columnGeneration.getSumWjUj();
     }
 
@@ -525,6 +519,7 @@ inline void BranchAndBound::branchingLocation(NodeWithLB &nodeWithLb) {
         // get the index of the group, it's the max between the indexGroup of both kind of machine.
         unsigned int indexGroup = pNode.getIndexGroup();
         auto &listGroupedJobs = instance->getListGrpJobs();
+        isWithinTimeLimit();
         if (listGroupedJobs[indexGroup].size() > 1) {
             createChildrenNodeWithIdenticalJobs(pNode);
         } else {
@@ -532,7 +527,7 @@ inline void BranchAndBound::branchingLocation(NodeWithLB &nodeWithLb) {
             bool jobIsEarly = true;
             // fixe a location
             for (auto itLocation = instance->getE()[pNode.getIndexBlock()].begin(); itLocation != instance->getE()[pNode.getIndexBlock()].end(); ++itLocation) {
-
+                isWithinTimeLimit();
                 // create child node
                 Node cNode = Node(pNode);
 

@@ -433,7 +433,7 @@ inline double ColumnGeneration::beta(unsigned int t, const Job &jobJ, char machi
     double dualValues = dualsValues[jobJ.getIndex()];
     double speed = machineSpeed == 0 ? instance->getHighSpeed() : instance->getLowSpeed();
     double newT = (static_cast<double>(t) + jobJ.getPi()) / speed;
-    if (islessequal(newT, jobJ.getDi())) result = -dualValues;
+    if (isSmallerOrEqual(newT, jobJ.getDi())) result = -dualValues;
     else result = jobJ.getWi() - dualValues;
     return result;
 }
@@ -941,23 +941,27 @@ inline void ColumnGeneration::addColumnFromSolution(Solution &solution, Node &no
 }
 
 inline void ColumnGeneration::generateStartingColumns(Node &node) {
+    if (heuristicSolver.getTimeUp() == nullptr) heuristicSolver.setTimeUp(timeUp);
+    // start time to measure performance
+    start = std::chrono::steady_clock::now();
+
     // add column from the upper bound solution
     addColumnFromSolution(*solution, node, 0);
     addColumnFromSolution(*solution, node, 1);
-    Heuristic heuristic(instance);
     auto listOfJobs = instance->getListJobs();
     std::vector<Job> selectedJobs;
     selectedJobs.reserve(instance->getNbToSelectJob());
     // use a windows of size n to get all subset of n jobs from the list of jobs and create optimal schedule for sum C_j
     unsigned int startIndexWindow = 0;
     while (startIndexWindow + instance->getNbToSelectJob() <= listOfJobs.size()) {
+        isWithinTimeLimit();
         selectedJobs.clear();
         //loop over jobs to assign them
         for (unsigned int indexJob = startIndexWindow; indexJob < startIndexWindow + instance->getNbToSelectJob(); ++indexJob) {
             selectedJobs.push_back(listOfJobs[listOfJobs.size() - 1 - indexJob]);
         }
         Solution newSol = Solution::solveSumCjCriteria(selectedJobs, instance);
-        heuristic.upgradeSolutionWithHeuristic(newSol, instance->getListJobs());
+        heuristicSolver.upgradeSolutionWithHeuristic(newSol, instance->getListJobs());
         addColumnFromSolution(newSol, node, 0);
         addColumnFromSolution(newSol, node, 1);
         ++startIndexWindow;
@@ -971,7 +975,7 @@ inline void ColumnGeneration::generateStartingColumns(Node &node) {
         std::copy_n(listOfJobs.begin(), instance->getNbToSelectJob(), selectedJobs.begin());
         std::sort(selectedJobs.begin(), selectedJobs.end(), std::greater<>());
         Solution newSol = Solution::solveSumCjCriteria(selectedJobs, instance);
-        heuristic.upgradeSolutionWithHeuristic(newSol, instance->getListJobs());
+        heuristicSolver.upgradeSolutionWithHeuristic(newSol, instance->getListJobs());
         addColumnFromSolution(newSol, node, 0);
         addColumnFromSolution(newSol, node, 1);
     }
@@ -1518,8 +1522,6 @@ inline void ColumnGeneration::solve(Node &node) {
     try {
         bool haveGenerateColumn = false; // boolean to know if we need to generate a column to start the column generation
         lowerBound = node.getPartialSumWjUj();
-        // start time to measure performance
-        start = std::chrono::steady_clock::now();
 
         // if there is no columns, then generate them
         updateModel(node);
@@ -1536,6 +1538,7 @@ inline void ColumnGeneration::solve(Node &node) {
         // count the number of generation
         unsigned int nbGeneration = 1;
         do {
+            isWithinTimeLimit();
             if (!cplex.solve()) {
                 if (!haveGenerateColumn) {
                     #ifdef DEBUG_CG
@@ -1610,9 +1613,9 @@ inline void ColumnGeneration::solve(Node &node) {
                 }
                 // if the diff UB - LB < 1 then we can stop the column generation
                 if (isSmaller(optValueRMP - lowerBound, 1)) {
-                    // since we are interested in the wj Uj value, which is an integer, then if UB - LB < 1 then we take LB = U
-                    // where U is the value of weighted sum of tardy jobs of the restricted master problem
-                    lowerBound = cplex.getValue(U);
+                    // since we are interested in the wj Uj value, which is an integer, then if UB - LB < 1 then we take LB = floor(UB)
+                    // where U is the value of weighted sum of tardy jobs of the restricted master problem. Here, we add epsilon to avoid floating representation error
+                    lowerBound = std::floor(cplex.getValue(U)+EPSILON);
                     break;
                 }
                 assert(constraints.getSize() == instance->getNbJobs() + 4);
@@ -1673,15 +1676,13 @@ inline void ColumnGeneration::solve(Node &node) {
             lowerBound = cplex.getValue(U);
             solution->setSumWjUj(lowerBound);
         }
-        isWithinTimeLimit(true, true);
+        isWithinTimeLimit();
         if (verbose >= 2) {
-            std::cout << "Column generation is over after " << time_elapsed.count() << " seconds" << std::endl;
             if (failedSolveMasterProblem)
                 std::cout << "No solution for master problem" << std::endl;
             else
                 std::cout << "The objective value is : " << cplex.getObjValue() << std::endl << "The sum wj Uj is : " << getSumWjUj() << std::endl;
         }
-
         // reset the number of call of the node to zero
         node.setNbCallHeuristicFailed(0ul, 0);
         node.setNbCallHeuristicFailed(0ul, 1);

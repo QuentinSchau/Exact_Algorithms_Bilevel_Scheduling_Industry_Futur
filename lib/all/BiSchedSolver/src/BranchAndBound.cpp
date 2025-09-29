@@ -27,10 +27,10 @@
 BranchAndBound::BranchAndBound() = default;
 
 BranchAndBound::BranchAndBound(Instance *instance) :
-        ISolver(instance), nbNodeLoc(0), nbCut(0), columnGeneration(instance), lbFromMIP(instance), memorization(1000000, Memorization::cleaning_t::NOT_USED, instance) {}
+        ISolver(instance), nbNodeLoc(0), nbCut(0), columnGeneration(instance),heuristicSolver(instance), lbFromMIP(instance), memorization(1000000, Memorization::cleaning_t::NOT_USED, instance) {}
 
 BranchAndBound::BranchAndBound(Instance *instance, nlohmann::json &object) :
-        ISolver(instance), nbNodeLoc(0), nbCut(0), columnGeneration(instance),lbFromMIP(instance), memorization(1000000, Memorization::cleaning_t::NOT_USED, instance), globalUB(
+        ISolver(instance), nbNodeLoc(0), nbCut(0), columnGeneration(instance),heuristicSolver(instance), lbFromMIP(instance), memorization(1000000, Memorization::cleaning_t::NOT_USED, instance), globalUB(
         instance->getSumWj()) {
     if (object.contains("name")) {
         if (object["name"] == "BaB") {
@@ -104,7 +104,6 @@ BranchAndBound::BranchAndBound(Instance *instance, nlohmann::json &object) :
 BranchAndBound::~BranchAndBound() = default;
 
 bool BranchAndBound::computeUpperBound() {
-    Heuristic heuristic(instance);
     MIP optSolMIP = MIP(instance);
     optSolMIP.setTimeLimit(20);
     optSolMIP.solve();
@@ -128,7 +127,7 @@ bool BranchAndBound::computeUpperBound() {
         do {
             globalUB = solution->getSumWjUj();
             Solution newSol = *solution;
-            heuristic.upgradeSolutionWithHeuristic(newSol, instance->getListJobs());
+            heuristicSolver.upgradeSolutionWithHeuristic(newSol, instance->getListJobs());
             if (isSmaller(newSol.getSumWjUj(), globalUB)) *solution = newSol;
             else continueUpgrading = false;
         } while (continueUpgrading);
@@ -140,7 +139,10 @@ bool BranchAndBound::computeUpperBound() {
 }
 
 void BranchAndBound::initialize() {
-    const auto start = std::chrono::steady_clock::now();
+    //set timeUp to all other used solver
+    columnGeneration.setTimeUp(timeUp);
+    heuristicSolver.setTimeUp(timeUp);
+    lbFromMIP.setTimeUp(timeUp);
     if (verbose >= 2) std::cout << "Computing the upper bound" << std::endl;
     isOptimal = computeUpperBound();
     // if the solution is optimal than stop the branching scheme
@@ -173,12 +175,10 @@ void BranchAndBound::solve() {
     dot << "graph search {" << std::endl;
     #endif
     try {
-        const auto start = std::chrono::steady_clock::now();
         initialize();
-        const auto endInit{std::chrono::steady_clock::now()};
-        time_elapsed = std::chrono::duration<double>{endInit - start};
         bool haveActiveNode = (walkStrategy == DEPTH_FIRST) ? !stackActiveNode.empty() : (walkStrategy == BREADTH_FIRST) ? !queueActiveNode.empty() : !heap.empty();
         while (haveActiveNode) {
+            isWithinTimeLimit();
             NodeWithLB nodeWithLb;
             switch (walkStrategy) {
                 case DEPTH_FIRST:nodeWithLb = stackActiveNode.back();
@@ -199,14 +199,10 @@ void BranchAndBound::solve() {
                 case LOCATION:branchingLocation(nodeWithLb);
                     break;
             }
-            const auto end{std::chrono::steady_clock::now()};
-            time_elapsed = std::chrono::duration<double>{end - start};
             haveActiveNode = (walkStrategy == DEPTH_FIRST) ? !stackActiveNode.empty() : (walkStrategy == BREADTH_FIRST) ? !queueActiveNode.empty() : !heap.empty();
-            if (time_elapsed.count() > time_limits.count()) {
-                throw BiSchTimeOutException();
-            }
         }
     } catch (const BiSchTimeOutException &e) {
+        time_elapsed = columnGeneration.getTimeElapsed();
         isOptimal = false;
     }
     #ifdef DEBUG_DOT
@@ -215,8 +211,7 @@ void BranchAndBound::solve() {
 
     solution->evaluate();
     if (verbose >= 1)
-        std::cout << "Branch and Bound is over after " << time_elapsed.count() << " seconds" << std::endl
-                  << "The objective value is : " << solution->getSumWjUj() << std::endl;
+        std::cout << "The objective value is : " << solution->getSumWjUj() << std::endl;
     if (verbose >= 2)
         std::cout << "Nb nodes Loc: " << nbNodeLoc << std::endl
                   << "Nb cuts in memo : " << memorization.getCut() << std::endl

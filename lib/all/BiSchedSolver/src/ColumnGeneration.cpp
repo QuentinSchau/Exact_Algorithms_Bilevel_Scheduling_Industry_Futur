@@ -26,20 +26,20 @@
 #include "ColumnGeneration.h"
 
 ColumnGeneration::ColumnGeneration() :
-        lowerBound(0.0), model(env), cplex(model), obj(env, "obj"), U(env, "U"), xs(env), constraints(env), duals(env), debug(false), generate_Column(0), failedSolveMasterProblem(false)
+        lowerBound(0.0), model(env), cplex(model), obj(env, "obj"), U(env, "U"), xs(env),constraints(env), duals(env), heuristicSolver(instance), debug(false), generate_Column(0), failedSolveMasterProblem(false)
         , nbCallsDP(0), nbCallsHeu(0) {
     model.add(IloMinimize(env, obj));
     parametrize();
 }
 
 ColumnGeneration::ColumnGeneration(Instance *instance) :
-        ISolver(instance), lowerBound(0.0), model(env), cplex(model), obj(env, "obj"), U(env, "U"), xs(env), constraints(env), duals(env), debug(false)
+        ISolver(instance), lowerBound(0.0), model(env), cplex(model), obj(env, "obj"), U(env, "U"), xs(env),constraints(env), duals(env), heuristicSolver(instance), debug(false)
         , generate_Column(0), failedSolveMasterProblem(false), nbCallsDP(0), nbCallsHeu(0) {
     initialize();
 }
 
 ColumnGeneration::ColumnGeneration(Instance *instance, nlohmann::json &object) :
-        ISolver(instance, object), lowerBound(0.0), model(env), cplex(model), obj(env, "obj"), U(env, "U"), xs(env), constraints(env), duals(env), debug(false)
+        ISolver(instance, object), lowerBound(0.0), model(env), cplex(model), obj(env, "obj"), U(env, "U"), xs(env), constraints(env), duals(env),heuristicSolver(instance), debug(false)
         , generate_Column(0), failedSolveMasterProblem(false), nbCallsDP(0), nbCallsHeu(0) {
     setParameters(object);
     initialize();

@@ -49,13 +49,127 @@ public:
             std::cout << "M" << indexMachine << ": " ;
             for (auto &job: machine) {
                 if (job.first != nullptr) {
-                    std::cout << "|" << job.first->getIndex() << " p:" << job.first->getPi() << " d:" << job.first->getDi() << "|";
+                    bool isLate = isSmaller(job.first->getDi(),job.second);
+                    std::cout << "|" << job.first->getIndex() <<  (isLate ? "X" : " ") << "p:" << job.first->getPi() << " d:" << job.first->getDi() << "|" ;
                 } else
                     std::cout << "\t X";
             }
             std::cout << std::endl;
         }
         std::cout << "----------------" << std::endl;
+    }
+
+    /**
+     * Method that sorts the machines according to the makespan. It first sorts high-speed machines, then low-speed machines.
+     *
+     * @param blockStructure The block structure of a given solution.
+     */
+    void static sortBlockStructurePerMakespan(BlockStructure &blockStructure,Instance * instance) {
+        // sort the machine according non-decreasing order of makespan for high-speed machine
+        std::sort(blockStructure.begin(), blockStructure.begin() + instance->getNbOfHighSpeedMachines(),
+                  [](std::vector<std::pair<const Job*, double>>& lhs, std::vector<std::pair<const Job*, double>>& rhs) { return isSmaller(lhs.back().second, rhs.back().second); });
+        // sort the machine according non-decreasing order of makespan for low-speed machine
+        std::sort(blockStructure.begin() + instance->getNbOfHighSpeedMachines(), blockStructure.end(),
+                  [](std::vector<std::pair<const Job*, double>>& lhs, std::vector<std::pair<const Job*, double>>& rhs) { return isSmaller(lhs.back().second, rhs.back().second); });
+    }
+
+    void static mergeTwoBlockStructure(BlockStructure &leftBlockStructure,
+                                  const BlockStructure &rightBlockStructure) {
+        assert(leftBlockStructure.size() == rightBlockStructure.size());
+
+        // Single pass with immediate assignment
+        for (unsigned int indexOfMachine = 0; indexOfMachine < leftBlockStructure.size(); ++indexOfMachine) {
+
+            for (unsigned int indexLoopBlock = 0; indexLoopBlock < leftBlockStructure[indexOfMachine].size(); ++indexLoopBlock) {
+                assert(indexOfMachine < leftBlockStructure.size());
+                assert(indexOfMachine < rightBlockStructure.size());
+                assert(indexLoopBlock < leftBlockStructure[indexOfMachine].size());
+                assert(indexLoopBlock < rightBlockStructure[indexOfMachine].size());
+
+                auto& leftBlock = leftBlockStructure[indexOfMachine][indexLoopBlock];
+                const auto& rightBlock = rightBlockStructure[indexOfMachine][indexLoopBlock];
+
+                if (leftBlock.first != nullptr && rightBlock.first != nullptr) {
+                    // Find next free position for this overlapping job
+                    unsigned int indexMachineWithoutJob = 0;
+                    while (indexMachineWithoutJob < leftBlockStructure.size()) {
+                        unsigned int indexInMachineWithoutJob = indexLoopBlock;
+                        if (leftBlockStructure[indexMachineWithoutJob][indexInMachineWithoutJob].first == nullptr) {
+                            // check if the machine have at least one free position
+                            while ( indexInMachineWithoutJob > 0
+                                    &&  leftBlockStructure[indexMachineWithoutJob][indexInMachineWithoutJob].first == nullptr
+                                    &&  leftBlockStructure[indexMachineWithoutJob][indexInMachineWithoutJob - 1].first == nullptr) {
+                                indexInMachineWithoutJob--;
+                                    }
+                            leftBlockStructure[indexMachineWithoutJob][indexInMachineWithoutJob].first = rightBlock.first;
+                            break;
+                        }
+                        ++indexMachineWithoutJob;
+                    }
+                    // If no free position found, this job remains unassigned
+                }
+                else if (leftBlock.first == nullptr && rightBlock.first != nullptr) {
+                    leftBlock.first = rightBlock.first;
+                }
+                // Both nullptr case doesn't need special handling
+            }
+        }
+    }
+
+
+    /**
+     * Method that computes the maximum processing time on the block before and the minimal processing time on the block after.
+     * @param instance A pointer to the Instance object.
+     * @param blockStruct The block structure from where we release jobs.
+     * @param indexBlock The index of block to release.
+     * @param maxPj The reference to the maxPj value that will be modified.
+     * @param minPj The reference to the minPj value that will be modified.
+     */
+    void static computeMaxMinProcessingTimeOnNearbyBlock(const Instance * instance,const BlockStructure &blockStruct, unsigned int indexBlock, double &maxPj, double &minPj) {
+        auto &E = instance->getE();
+        if (indexBlock > 0) {
+            for (auto &location: E[indexBlock - 1]) {
+                auto [job, cj] = blockStruct[location.first][location.second];
+                if (job != nullptr) {
+                    maxPj = std::max(maxPj, job->getPi());
+                }
+            }
+        }
+        // get the min pj from the block after
+        if (indexBlock < E.size() - 1) {
+            for (auto &location: E[indexBlock + 1]) {
+                auto [job, cj] = blockStruct[location.first][location.second];
+                if (job != nullptr) {
+                    minPj = std::min(minPj, job->getPi());
+                }
+            }
+        }
+    }
+
+    /**
+     * Method that evaluate a block structure, i.e. update completion times and compute the number of weighted tardy jobs
+     * @param blockStruct  The block structure that we want to evaluate.
+     * @param instance The instance of the problem.
+     * @return the sum of weighted tardy from the block structure object
+     */
+    static double evaluate(BlockStructure &blockStruct, const Instance * instance) {
+        double sumWj = 0.0;
+        unsigned int indexLoopBlock = 0;
+        while (indexLoopBlock < instance->getE().size()) {
+            for (auto &[indexMachine,indexInBlock] : instance->getE()[indexLoopBlock]) {
+                auto &jobWithCj = blockStruct[indexMachine][indexInBlock];
+                double speed = indexMachine < instance->getNbOfHighSpeedMachines() ? instance->getHighSpeed() : instance->getLowSpeed();
+                double completionTime = indexInBlock == 0 ? 0.0 : blockStruct[indexMachine][indexInBlock-1].second;
+                if (jobWithCj.first != nullptr) {
+                    jobWithCj.second = completionTime + jobWithCj.first->getPi()/speed;
+                    if (isSmaller(jobWithCj.first->getDi(),jobWithCj.second)) {
+                        sumWj += jobWithCj.first->getWi();
+                    }
+                }else jobWithCj.second = 0.0;
+            }
+            indexLoopBlock++;
+        }
+        return sumWj;
     }
 
     /************************/
@@ -95,10 +209,81 @@ public:
     /*      METHODS     */
     /********************/
 
+    /**
+     * This method exactly solves, for a given list of jobs, the criterion sum Cj by using the block structure. The solution
+     * is evaluated when it is returned.
+     * @param listJobs The list of jobs to schedule. This list MUST BE SORTED ACCORDING SPT RULE
+     * @param instance The instance from where we need to check if the solution is feasible
+     * @return The block structure that of the solution
+     */
+    static std::pair<Solution::BlockStructure,double> blockStructureBySolvingSumCj(const std::vector<unsigned int> &listJobs, Instance *instance) {
+        Solution::BlockStructure blockStructure;
+        double sumWjUj = 0.0;
+        // initialize completion time and block struct
+        for (unsigned int i = 0; i < instance->getNbMachines(); ++i) {
+            blockStructure.emplace_back(instance->getMaxNbJobsOnHS());
+        }
+        assert(listJobs.size() == instance->getNbToSelectJob());
+        assert(std::is_sorted(listJobs.begin(),listJobs.end()));
+        auto & E = instance->getE();
+        unsigned int nbJobToSelectOnBlock = 0; // the number of job to schedule in the solution
+        unsigned int nbJobSelected = 0; // the number of job that are already selected
+        for (unsigned int indexBlock = 0; indexBlock < E.size(); indexBlock++) {
+            //get the number of job to schedule in the block
+            nbJobToSelectOnBlock += indexBlock == 0 ? instance->getNbJobsToScheduleOnFirstBlock() : E[indexBlock].size();
+            for (auto &[indexMachine,indexInMachine] : E[indexBlock]) {
+                assert(nbJobSelected < listJobs.size());
+                double completionTime = indexInMachine == 0 ? 0.0 : blockStructure[indexMachine][indexInMachine-1].second;
+                double speed = indexMachine < instance->getNbOfHighSpeedMachines() ? instance->getHighSpeed() : instance->getLowSpeed();
+                const Job* job = &instance->getListJobs()[listJobs[nbJobSelected]];
+                completionTime += job->getPi() / speed;
+                blockStructure[indexMachine][indexInMachine].first = job;
+                blockStructure[indexMachine][indexInMachine].second = completionTime;
+                if (isSmaller(job->getDi(),completionTime)) sumWjUj += job->getWi();
+                ++nbJobSelected;
+                if (nbJobToSelectOnBlock == nbJobSelected) break;
+            }
+        }
+        return {blockStructure,sumWjUj};
+    }
+
+    /**
+     * This method exactly solves, for a given list of jobs, the criterion sum Cj by using the block structure. The solution
+     * is evaluated. Both, the block structure and the evaluation are inplace with the reference given by parameters.
+     * @param blockStructure The block structure that will be filled with the list of jobs
+     * @param sumWjUj The value of the objective function
+     * @param listJobs The list of jobs to schedule. This list MUST BE SORTED ACCORDING SPT RULE
+     * @param instance The instance from where we need to check if the solution is feasible
+     */
+    static void blockStructureBySolvingSumCj(BlockStructure &blockStructure, double &sumWjUj,const std::vector<unsigned int> &listJobs, Instance *instance) {
+        sumWjUj = 0.0;
+        assert(listJobs.size() == instance->getNbToSelectJob());
+        assert(std::is_sorted(listJobs.begin(),listJobs.end()));
+        auto & E = instance->getE();
+        unsigned int nbJobToSelectOnBlock = 0; // the number of job to schedule in the solution
+        unsigned int nbJobSelected = 0; // the number of job that are already selected
+        for (unsigned int indexBlock = 0; indexBlock < E.size(); indexBlock++) {
+            //get the number of job to schedule in the block
+            nbJobToSelectOnBlock += indexBlock == 0 ? instance->getNbJobsToScheduleOnFirstBlock() : E[indexBlock].size();
+            for (auto &[indexMachine,indexInMachine] : E[indexBlock]) {
+                assert(nbJobSelected < listJobs.size());
+                double completionTime = indexInMachine == 0 ? 0.0 : blockStructure[indexMachine][indexInMachine-1].second;
+                double speed = indexMachine < instance->getNbOfHighSpeedMachines() ? instance->getHighSpeed() : instance->getLowSpeed();
+                const Job* job = &instance->getListJobs()[listJobs[nbJobSelected]];
+                completionTime += job->getPi() / speed;
+                blockStructure[indexMachine][indexInMachine].first = job;
+                blockStructure[indexMachine][indexInMachine].second = completionTime;
+                if (isSmaller(job->getDi(),completionTime)) sumWjUj += job->getWi();
+                ++nbJobSelected;
+                if (nbJobToSelectOnBlock == nbJobSelected) break;
+            }
+        }
+    }
+
 
     /**
      * This method exactly solves, for a given list of jobs, the criterion sum Cj by Brucker algorithm. The solution
-     * is evaluate when it is returned.
+     * is evaluated when it is returned.
      * @param listJobs The list of jobs to schedule. This list MUST BE SORTED ACCORDING LPT RULE
      * @param instance The instance from where we need to check if the solution is feasible
      */
@@ -141,6 +326,16 @@ public:
         return sol;
     }
 
+     static void removeExistingJobsFromSolution(std::vector<Job> &listOfJobsAvailable, Solution::BlockStructure &blockStructure) {
+        for (auto &machine : blockStructure) {
+            auto itRemove = std::remove_if(listOfJobsAvailable.begin(), listOfJobsAvailable.end(), [&machine](auto& job) {
+                return std::find_if(machine.begin(), machine.end(), [&job](std::pair<const Job*, double>& jobWithCj) {
+                    return jobWithCj.first != nullptr ? *jobWithCj.first == job : false;
+                }) != machine.end();
+            });
+            listOfJobsAvailable.erase(itRemove, listOfJobsAvailable.end());
+        }
+    }
 
     /**
      * Method that reverses all jobs on all machines
@@ -262,6 +457,10 @@ public:
      */
     bool feasible(Instance *instance) {
         bool isFeasible = true;
+        auto listJobFromSol = extractListOfJobs();
+        std::set<Job> setJobsUseInSol(listJobFromSol.begin(), listJobFromSol.end());
+        // must have n distinct jobs
+        if (setJobsUseInSol.size() != instance->getNbToSelectJob()) return false;
         // check if the number of scheduled jobs is equal to the number of selected jobs
         if (nbScheduledJobs != instance->getNbToSelectJob()) return false;
         //check if all machines have enough and not more jobs for respect block structure
@@ -321,6 +520,84 @@ public:
 
         }
         return isFeasible;
+    }
+
+    /**
+     * Method that says why the solution is infeasible by writing in cerr output.
+     * @param instance The problem instance from which the solution originates
+     */
+    void explainInfeasibility(Instance *instance) {
+        auto listJobFromSol = extractListOfJobs();
+        std::set<Job> setJobsUseInSol(listJobFromSol.begin(), listJobFromSol.end());
+        // must have n distinct jobs
+        if (setJobsUseInSol.size() != instance->getNbToSelectJob()) {
+            std::cerr << setJobsUseInSol.size() << " distinct jobs was scheduled instead of " << instance->getNbToSelectJob() << " . There is same jobs in the solution" << std::endl;
+            return;
+        }
+        // check if the number of scheduled jobs is equal to the number of selected jobs
+        if (nbScheduledJobs != instance->getNbToSelectJob()) {
+            std::cerr << setJobsUseInSol.size() << " jobs was scheduled instead of " << instance->getNbToSelectJob() << "" << std::endl;
+            return;
+        }
+        //check if all machines have enough and not more jobs for respect block structure
+        // loop over high-speed machines
+        unsigned int indexMachine = 0;
+        for (auto &machine: listHighSpeedMachines) {
+            if (machine.size() < instance->getMinNbJobsOnHS() || machine.size() > instance->getMaxNbJobsOnHS()) {
+                std::cerr << "High speead machine M"<< indexMachine << " have not the right number of jobs: " << machine.size() << " that is not in the range [" << instance->getMinNbJobsOnHS() << "," << instance->getMaxNbJobsOnHS() << "]" << std::endl;
+                return;
+            }
+            ++indexMachine;
+        }
+
+
+        // loop over low-speed machines
+        for (auto &machine: listLowSpeedMachines) {
+            if (machine.size() < instance->getMinNbJobsOnLS() || machine.size() > instance->getMaxNbJobsOnLS()) {
+                std::cerr << "Low speed machine M"<< indexMachine << " have not the right number of jobs: " << machine.size() << " that is not in the range [" << instance->getMinNbJobsOnLS() << "," << instance->getMaxNbJobsOnLS() << "]" << std::endl;
+                return;
+            }
+            ++indexMachine;
+        }
+
+        BlockStructure blockStructure = toBlockStruct(instance);
+        auto &E = instance->getE();
+        unsigned int indexBlock = 0;
+        while (indexBlock < E.size()) {
+            // the number of jobs that must be scheduled on the block k
+            unsigned int numJobsToScheduleOnBlock = (indexBlock == 0) ? instance->getNbJobsToScheduleOnFirstBlock() : E[indexBlock].size();
+            double maxPjInBlock = -1.0, minPjNextBlock = std::numeric_limits<double>::infinity();
+            // get the maximum of the pj in the block and reduced numJobsToScheduleOnBlock if there is a job scheduled on machine
+            for (auto &location: E[indexBlock]) {
+                auto [job, cj] = blockStructure[location.first][location.second];
+                if (job != nullptr) {
+                    maxPjInBlock = std::max(maxPjInBlock, job->getPi());
+                    --numJobsToScheduleOnBlock;
+                }
+            }
+            // if we have not scheduled all jobs in the block
+            if (numJobsToScheduleOnBlock != 0) {
+                std::cerr << "Not scheduled all jobs in the block: " << numJobsToScheduleOnBlock << "jobs to schedule on the block " << indexBlock << std::endl;
+                break;
+            }
+            //pass to the next block
+            ++indexBlock;
+            if (indexBlock < E.size()) {
+                // compute the min of the next block
+                for (auto &location: E[indexBlock]) {
+                    auto [job, cj] = blockStructure[location.first][location.second];
+                    if (job != nullptr) {
+                        minPjNextBlock = std::min(minPjNextBlock, job->getPi());
+                    }
+                }
+            }
+            // check if the max of pj from the block is smaller than the min of pj from the next block
+            if (maxPjInBlock > minPjNextBlock) {
+                std::cerr << "the max of pj ("<<maxPjInBlock<<") from the block "<<indexBlock-1 <<" is smaller than the min of pj ("<< minPjNextBlock<<") from the next block " << indexBlock << std::endl;
+                break;
+            }
+
+        }
     }
 
     bool feasibleOld(Instance *instance) const {
@@ -392,7 +669,7 @@ public:
      * Method that constructs a schedule with block of job pairs (*Job, double) based on the solution's machines.
      * @param instance The instance to solve
      */
-    BlockStructure toBlockStruct(Instance *instance) {
+    BlockStructure toBlockStruct(Instance * instance) {
         if (listHighSpeedMachines.empty() && listLowSpeedMachines.empty())
             throw BiSchException("None machines have jobs");
         // schedule [i][k] where i is the index of machine and k the index of the block. At position [i,k] we have a job and the completion time
@@ -434,16 +711,19 @@ public:
 
 inline std::ostream &operator<<(std::ostream &os, const Solution &solution) {
     os << "Solution : " << std::endl
-       << "high speed machines : [" << std::endl;
+       << "high speed machines : " << std::endl;
+    unsigned int indexMachine = 0;
     for (const Machine &machine: solution.getListHighSpeedMachines()) {
-        os << machine << std::endl;
+        os << "M" << indexMachine <<": "<< machine << std::endl;
+        indexMachine++;
     }
-    os << "]" << std::endl
-       << "low speed machines : [" << std::endl;
+    os << std::endl
+       << "low speed machines : " << std::endl;
     for (const Machine &machine: solution.getListLowSpeedMachines()) {
-        os << machine << std::endl;
+        os << "M" << indexMachine <<": "<< machine << std::endl;
+        indexMachine++;
     }
-    os << "]" << std::endl << "Sum Cj : " << solution.getSumCj() << std::endl << "Sum wjUj : " << solution.getSumWjUj()
+    os << std::endl << "Sum Cj : " << solution.getSumCj() << std::endl << "Sum wjUj : " << solution.getSumWjUj()
        << std::endl;
     return os;
 

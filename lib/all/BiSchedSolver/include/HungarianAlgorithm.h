@@ -48,7 +48,7 @@ public:
 
     ~HungarianAlgorithm();
 
-    double Solve(std::vector<std::vector<double>> &DistMatrix, std::vector<int> &Assignment);
+    double Solve(std::vector<std::vector<double>> &DistMatrix, std::vector<int> &Assignment, unsigned int nCols, unsigned int nRows=0);
 
 private:
     void assignmentoptimal(int *assignment, double *cost, double *distMatrix, int nOfRows, int nOfColumns);
@@ -77,10 +77,12 @@ inline HungarianAlgorithm::~HungarianAlgorithm() {}
 //********************************************************//
 // A single function wrapper for solving assignment problem.
 //********************************************************//
-inline double HungarianAlgorithm::Solve(std::vector<std::vector<double> > &DistMatrix, std::vector<int> &Assignment) {
-    unsigned int nRows = DistMatrix.size();
-    unsigned int nCols = DistMatrix[0].size();
-
+inline double HungarianAlgorithm::Solve(std::vector<std::vector<double> > &DistMatrix, std::vector<int> &Assignment,unsigned int nCols,unsigned int nRows) {
+    if (nRows == 0) nRows = DistMatrix.size();
+    if (nCols == 0) nCols = DistMatrix[0].size();
+    if (nRows <= 0 || nCols <= 0) {
+        throw BiSchException("Invalid matrix size in HungarianAlgorithm");
+    }
     double *distMatrixIn = new double[nRows * nCols];
     int *assignment = new int[nRows];
     double cost = 0.0;

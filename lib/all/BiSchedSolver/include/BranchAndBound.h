@@ -248,6 +248,7 @@ private:
 
     // column generation model to solve the relaxation of a node
     ColumnGeneration columnGeneration;
+    Heuristic heuristicSolver;
     LowerBoundMIP lbFromMIP;
     Memorization memorization;
 

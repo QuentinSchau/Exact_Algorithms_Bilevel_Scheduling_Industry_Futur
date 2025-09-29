@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
                                             if (verbose >= 1)
                                                 std::cout << "-------- BRUT FORCE ---------" << std::endl << std::endl;
                                             BrutForce optBrutSol = BrutForce(&newInstance, method);
-                                            optBrutSol.solve();
+                                            optBrutSol.run("Brut force");
                                             optBrutSol.printOutput(outputPath, outputFileStream);
                                             if (verbose >= 2) {
                                                 if (verbose >= 3)
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
                                                           << std::endl;
                                             newInstance.sort_by_LPT();
                                             DynamicPrograming optSolDyn = DynamicPrograming(&newInstance, method);
-                                            optSolDyn.solve();
+                                            optSolDyn.run("Dynamic Programming");
                                             optSolDyn.printOutput(outputPath, outputFileStream);
                                             newInstance.sort_by_SPT();
                                             if (verbose >= 2) std::cout << "Backtracking not implemented" << std::endl;
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
                                                 std::cout << "-------- " << method["name"] << " ---------" << std::endl
                                                           << std::endl;
                                             MIP optSolMIP = MIP(&newInstance, method);
-                                            optSolMIP.solve();
+                                            optSolMIP.run("MIP");
                                             optSolMIP.printOutput(outputPath, outputFileStream);
                                             if (verbose >= 2) {
                                                 if (verbose >= 3)
@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
                                                 std::cout << "-------- BRANCH AND BOUND ---------" << std::endl
                                                           << std::endl;
                                             BranchAndBound optSolBaB = BranchAndBound(&newInstance, method);
-                                            optSolBaB.solve();
+                                            optSolBaB.run("Branch and Bound");
                                             optSolBaB.printOutput(outputPath, outputFileStream);
                                             if (verbose >= 2) {
                                                 if (verbose >= 3)
@@ -207,9 +207,9 @@ int main(int argc, char **argv) {
                                             // sort instance by SPT
                                             newInstance.sort_by_SPT();
                                             if (verbose >= 1)
-                                                std::cout << "-------- LOCAL SEARCH V1 ---------" << std::endl << std::endl;
+                                                std::cout << "-------- LOCAL SEARCH ---------" << std::endl << std::endl;
                                             Heuristic solveHeuristic = Heuristic(&newInstance, method);
-                                            solveHeuristic.solve();
+                                            solveHeuristic.run("Heuristic");
                                             bool isFeasible = solveHeuristic.getSolution()->feasible(&newInstance);
                                             if (verbose >= 2) {
                                                 if (verbose >= 3)

@@ -170,9 +170,12 @@ unsigned int nChoosek(unsigned int n, unsigned int k);
  * @param x first element
  * @param y second element
  * @return the bijection of the couple in N
+ * @throws std::invalid_argument if T is not an integer type
  */
 template<typename T>
 T elegantPair(T x, T y) {
+    // Check if T is an integer type
+    static_assert(std::is_integral_v<T>, "T must be an integer type");
     if (x < y) return y * y + x;
     else return x * x + x + y;
 };
@@ -185,10 +188,21 @@ T elegantPair(T x, T y) {
  * @param x2 second element
  * @param args the k-2 element of the tuple
  * @return the bijection of the tuple in N
+ * @throws std::invalid_argument if T and Args is not an integer type
  */
 template<typename T, typename... Args>
 T elegantPair(T x1, T x2, Args... args) {
-    return elegantPair(elegantPair(x1, x2), args...);
+    // Check if T is an integer type
+    static_assert(std::is_integral_v<T>, "T must be an integer type");
+    // Base case: If there are no more arguments, compute the bijection for x1 and x2
+    if constexpr (sizeof...(args) == 0) {
+        return elegantPair(x1, x2);
+    } else {
+        // Recursive case: Compute the bijection for each group of two elements
+        auto result = elegantPair(elegantPair(x1, x2), args...);
+        // Return the final result
+        return result;
+    }
 };
 
 /**
@@ -197,9 +211,12 @@ T elegantPair(T x1, T x2, Args... args) {
  * @param z the value in N
  * @param k the dimension of N^k from where the bijection was computed
  * @return the vector of size k corresponding to z
+ * @throws std::invalid_argument if T and Args is not an integer type
  */
 template<typename T>
 std::vector<T> elegantUnpair(T z, unsigned int k) {
+    // Check if T is an integer type
+    static_assert(std::is_integral_v<T>, "T must be an integer type");
     std::vector<T> output;
     output.reserve(k);
     for (unsigned i = 1; i < k - 1; ++i) {
@@ -230,9 +247,12 @@ std::vector<T> elegantUnpair(T z, unsigned int k) {
  * @tparam T Must be integer, i.e., unsigned int, unsigned long long, etc.
  * @param z the value in N
  * @return the pair corresponding to z
+ * @throws std::invalid_argument if T and Args is not an integer type
  */
 template<typename T>
 std::pair<T, T> elegantUnpair(T z) {
+    // Check if T is an integer type
+    static_assert(std::is_integral_v<T>, "T must be an integer type");
     std::pair<T, T> output;
     T a = static_cast<T>(std::floor(std::sqrt(z)));
     T b = a * a;
@@ -281,5 +301,14 @@ void findCombinations(const std::vector<T> &arr, unsigned int combinationLength,
     } while (std::prev_permutation(bitmask.begin(), bitmask.end()));
 
 }
+
+template<typename T>
+struct std::hash<std::pair<T,T>>{
+    static_assert(std::is_integral_v<T>, "Hash is not implemented for non-integer types. Please use an integer type (e.g. int, long, etc.) or consider std::hash or boost::hash");
+    std::size_t operator()(const std::pair<T,T>& p) const noexcept{
+        return elegantPair(p.first, p.second);
+    }
+};
+
 
 #endif //BILEVEL_SCHEDULING_MATH_H
