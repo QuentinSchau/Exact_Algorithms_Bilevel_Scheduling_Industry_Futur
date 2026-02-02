@@ -399,7 +399,7 @@ inline void BranchAndBound::addNode(Node &node) {
             }
             #endif
             return;
-        } else throw BiSchException(std::string("Select n job, unfeasible where as branching scheme make feasible with: ").append(instance->getInstancePath().string()));
+        } else throw BiSchException("Select n job, unfeasible where as branching scheme make feasible");
     } else // if we have selected the right nb of job
     if (node.getSelectedJobCount() == instance->getNbToSelectJob()) {
         Solution solFromNode(instance);
@@ -420,7 +420,7 @@ inline void BranchAndBound::addNode(Node &node) {
             }
             #endif
             return;
-        } else throw BiSchException(std::string("Select n job, unfeasible where as branching scheme make feasible with: ").append(instance->getInstancePath().string()));
+        } else throw BiSchException("Select n job, unfeasible where as branching scheme make feasible");
     }
     double lowerBound = 0.0;
     if (lBStrategy == LB_MIP) {

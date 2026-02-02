@@ -117,7 +117,6 @@ public:
             std::cerr << "Exception append for instance" << instance->getInstancePath() << ":" << std::endl;
             std::cerr << e.what() << std::endl;
         }catch (...) {
-            std::cerr << "Exception append for instance" << instance->getInstancePath() << ":" << std::endl;
             std::cerr << "Exception unknown" << std::endl;
         }
         const auto endSolve{std::chrono::steady_clock::now()};
