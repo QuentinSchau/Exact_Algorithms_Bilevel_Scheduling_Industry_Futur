@@ -480,7 +480,7 @@ inline void Heuristic::freeAndAssignmentBlock(Solution::BlockStructure &blockStr
             listOfJobsAvailable->push_back(*blockStruct[indexMachine][indexBlockInStruct].first);
         blockStruct[indexMachine][indexBlockInStruct] = {nullptr, 0.0};
     }
-    // apply the new assigment
+    // apply the new assignment
     for (unsigned int indexLoopMachine = 0; indexLoopMachine < E[indexBlock].size(); indexLoopMachine++) {
         isWithinTimeLimit();
         auto [indexMachine, indexBlockInStruct] = E[indexBlock][indexLoopMachine];

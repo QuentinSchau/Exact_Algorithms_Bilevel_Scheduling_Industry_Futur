@@ -114,7 +114,7 @@ public:
             if (verbose >= 1)
                 std::cout << "Solver stopped due to time limit." << std::endl;
         }catch (const std::exception& e) {
-            std::cerr << "Exception append for instance" << instance->getInstancePath() << ":" << std::endl;
+            std::cerr << "Exception append for instance: " << instance->getInstancePath() << ":" << std::endl;
             std::cerr << e.what() << std::endl;
         }catch (...) {
             std::cerr << "Exception unknown" << std::endl;
