@@ -11,14 +11,14 @@ import os
 N_VALUES = [40,50,60,70,80]
 M_VALUES = [2, 4]
 MAX_NB_CALL_HEURISTIC = 1  # max number of failing of heuristic we tolerate
-NB_MIN_COLUMN = 3  # the minimal number of column we generate with DP (generate several with backtracking)
+NB_MIN_COLUMN = 5  # the minimal number of column we generate with DP (generate several with backtracking)
 METHODS = ['MIP', 'BaB']
 STRATEGIES = ['depth-first', np.nan]
 LOWER_BOUNDS = ['Columns_Generation', np.nan]
 MEMORIZATION = True
 HEURISTIC = 0
 OUTPUT_FILE = "temp/test.tex"
-BASE_PATH = "/home/schau/Documents/These/Code/Bilevel-Scheduling-I4.0/instances/N{}/{}"
+BASE_PATH = "../instances/N{}/{}"
 
 if not os.path.exists(os.path.dirname(OUTPUT_FILE)):
     os.makedirs(os.path.dirname(OUTPUT_FILE))
