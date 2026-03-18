@@ -335,7 +335,7 @@ inline void Heuristic::computeCostMatrixWithUnchangedMachines(Solution::BlockStr
             double costSchedule = (indexBlock > 0) ? costAtEachBlock[indexLoopMachine][indexBlock - 1] : 0.0;
 
             // add the cost of the job if is late
-            double costJob = isSmallerOrEqual(job.getDi(),completionTime) ? job.getWi() : 0.0;
+            double costJob = isSmaller(job.getDi(),completionTime) ? job.getWi() : 0.0;
             costSchedule += costJob;
             // compute the cost of the machine schedule because we change the completion time of other next blocks
             // So loop over the next block

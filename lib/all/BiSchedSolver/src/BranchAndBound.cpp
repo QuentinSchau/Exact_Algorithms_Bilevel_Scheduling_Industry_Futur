@@ -70,6 +70,7 @@ BranchAndBound::BranchAndBound(Instance *instance, nlohmann::json &object) :
                 if (object["timeLimits"].is_number_unsigned()) {
                     setTimeLimit(object["timeLimits"]);
                     columnGeneration.setTimeLimit(object["timeLimits"]);
+                    lbFromMIP.setTimeLimit(object["timeLimits"]);
                 } else
                     throw std::invalid_argument(
                             R"(The attribute "timeLimits" of JSON object must be an "unsigned int" value for the constructor of BaB solver)");
@@ -270,15 +271,12 @@ void BranchAndBound::printOutput(std::string &fileOutputName, std::ofstream &out
                << "\t" << "BaB"
                << "\t" << time_elapsed.count()
                << "\t" << time_limits.count()
-               << "\t" << columnGeneration.getNbMinStateDp()
+               << "\t" << (lBStrategy == LowerBound::CG ? std::to_string(columnGeneration.getNbMinStateDp()) : "null")
                << "\t" << getStrategy()
-               << "\t" << getLowerBoundStrategy();
-    if (lBStrategy == LowerBound::CG) {
-        outputFile << "\t" << static_cast<unsigned int>(columnGeneration.getGenerateColumn()) << "\t" << columnGeneration.getMaxNbCallHeuristic();
-    } else {
-        outputFile << "\t null \t null \t";
-    }
-    outputFile << "\t" << memorizationActivate
+               << "\t" << getLowerBoundStrategy()
+               << "\t" << (lBStrategy == LowerBound::CG ? std::to_string(static_cast<unsigned int>(columnGeneration.getGenerateColumn())) : "null")
+               << "\t" << (lBStrategy == LowerBound::CG ? std::to_string(columnGeneration.getMaxNbCallHeuristic()) : "null")
+               << "\t" << memorizationActivate
                << "\t" << nbNodeLoc
                << "\t" << nbCut
                << "\t" << memorization.getNbCleaning()

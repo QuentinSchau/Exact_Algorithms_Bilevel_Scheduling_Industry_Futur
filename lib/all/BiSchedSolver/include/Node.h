@@ -149,58 +149,11 @@ public :
         blockStruct[indexOfMachine][indexOfBlock].second = newCompletionTime;
     }
 
-    void setBlockStructure(Solution::BlockStructure && newBlock_structure) {
-        /**
-         * Let R0 the encoding of removed jobs in the node before updating block structure
-         * Let S0 the encoding of selected jobs in the node before updating block structure
-         * Let R1 the encoding of removed jobs in the node after updating block structure
-         * Let S1 the encoding of selected jobs in the node after updating block structure
-         * A = S1 AND R0 represents jobs that have been removed and now they are scheduled.
-         * B = S0 XOR S1 represents jobs that change state, i.e., that have been schedule then removed or removed then scheduled.
-         * C = B XOR A represents jobs that have been scheduled and now they are removed.
-         * D = R XOR A represents jobs that are still removed.
-         * R1 is given by: R1 = D OR C, which can be simply in : R1 = ((R0 XOR S1) OR S0) AND (R0 XOR S1 XOR S0)
-         */
-        assert(newBlock_structure.size() == blockStruct.size());
-//        partial_sum_wj_Uj = 0;
-//        boost::dynamic_bitset<> newEncodingSelection(instance->getNbJobs(),false);
-//        boost::dynamic_bitset<> encodingCurrentSelection(instance->getNbJobs(),false);
-//        boost::dynamic_bitset<> newEncodingRemove(instance->getNbJobs(),false);
-//        unsigned int nbScheduledJobs = 0;
-//        for (unsigned int indexMachine = 0; indexMachine < newBlock_structure.size(); ++indexMachine) {
-//            auto &machine = newBlock_structure[indexMachine];
-//            boost::dynamic_bitset<> newEncodingMachine(instance->getNbJobs(), false);
-//            for (auto pairJobCj: machine) {
-//                if (pairJobCj.first != nullptr) {
-//                    nbScheduledJobs++;
-//                    newEncodingMachine.set(pairJobCj.first->getIndex());
-//                    if (isSmaller(pairJobCj.first->getDi(), pairJobCj.second))
-//                        partial_sum_wj_Uj += pairJobCj.first->getWi();
-//                }
-//            }
-//            newEncodingSelection |= newEncodingMachine;
-//            encodingCurrentSelection |= encodingSelectedJobOnMachines[indexMachine];
-//            //change the encoding of the machine
-//            encodingSelectedJobOnMachines[indexMachine] = newEncodingMachine;
-//        }
-//        // update the encoding of removed jobs
-//        newEncodingRemove = ((encodingRemoveDecision ^ newEncodingSelection) | encodingCurrentSelection) & (encodingRemoveDecision ^ encodingCurrentSelection ^ newEncodingSelection);
-//        assert(nbScheduledJobs == selectedJobCount);
-//        assert(encodingCurrentSelection.count() == nbScheduledJobs);
-//        assert(newEncodingRemove.count() == removedJobsCount);
-//        // change the encoding of removed jobs
-//        encodingRemoveDecision = newEncodingRemove;
-//        // change the block structure
-        blockStruct = std::move(newBlock_structure);
-
-    }
-
     /**
      * Swap for the machine at the index 'indexMachine' the job at position 'positionInMachine' with the job given by the index 'indexRemovedJobs'. This method
      * updates only encodings for the case where we swap a scheduled job with a removed job.
      * @param indexMachine The index of the machine where we make the swap.
      * @param positionInMachine The position in the machine where the job must be swapped.
-     * @param indexScheduledJobs The index of the scheduled job.
      * @param indexRemovedJobs The index of the removed jobs.
      */
     void swapRemovedAndScheduledJob(unsigned int indexMachine,unsigned int positionInMachine, unsigned int indexRemovedJobs){

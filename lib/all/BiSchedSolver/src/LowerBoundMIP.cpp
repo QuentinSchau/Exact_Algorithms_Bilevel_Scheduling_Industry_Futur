@@ -101,9 +101,7 @@ void LowerBoundMIP::initializeMIP() {
     unsigned int maxPj = static_cast<unsigned int>(instance->getMaxPj());
 
     // the set of all locations to be optimal for sum Cj
-    std::vector<std::vector<std::pair<unsigned int, unsigned int>>> E;
-    size_t nbLocation = instance->computeChronologicalLocations(E);
-
+    auto &E = instance->getE();
 
     /***********************/
     /*      VARIABLES      */
@@ -121,13 +119,13 @@ void LowerBoundMIP::initializeMIP() {
         for (auto const &position: batch) {
             // loop over all jobs
             for (unsigned int j = 0; j < N; ++j) {
-                if (j <= x[position.first].size()) x[position.first].emplace_back(env);
+                if (x[position.first].size() < N) x[position.first].emplace_back(env);
                 std::string nameVar = "x_{";
                 nameVar.append(std::to_string(position.first)).append(",");
                 nameVar.append(std::to_string(j)).append(",");
                 nameVar.append(std::to_string(x[position.first][j].getSize()));
                 nameVar.append("}");
-                x[position.first][j].add(IloNumVar(env, 0.0, 1.0, ILOBOOL, nameVar.c_str()));
+                x[position.first][j].add(IloNumVar(env, 0.0, 1.0, ILOFLOAT, nameVar.c_str()));
             }
         }
     }
@@ -152,7 +150,7 @@ void LowerBoundMIP::initializeMIP() {
                 }
             }
             if (indexBlock == 0)
-                nbJobsToScheduleBefore += instance->getE()[0].size() + instance->getNbToSelectJob() - instance->getMaxNbLocation();
+                nbJobsToScheduleBefore += instance->getNbJobsToScheduleOnFirstBlock();
             else
                 nbJobsToScheduleBefore += instance->getE()[indexBlock].size();
         }
@@ -193,9 +191,9 @@ void LowerBoundMIP::initializeMIP() {
                 std::string nameVar = "t_{";
                 nameVar.append(std::to_string(position.first)).append(",");
                 nameVar.append(std::to_string(j)).append(",");
-                nameVar.append(std::to_string(x[position.first][j].getSize()));
+                nameVar.append(std::to_string(t[position.first][j].getSize()));
                 nameVar.append("}");
-                t[position.first][j].add(IloNumVar(env, 0.0, 1.0, ILOBOOL, nameVar.c_str()));
+                t[position.first][j].add(IloNumVar(env, 0.0, 1.0, ILOFLOAT, nameVar.c_str()));
             }
         }
     }
@@ -220,7 +218,7 @@ void LowerBoundMIP::initializeMIP() {
     }
 
     ExprObj -= obj;
-    model.add(ExprObj == 0);
+    model.add(IloRange(env, 0.0, ExprObj, 0.0,"Objective"));
     ExprObj.end();
 
     /*************************/
@@ -239,12 +237,14 @@ void LowerBoundMIP::initializeMIP() {
                 ExprC1 += x[position.first][j][position.second];
         }
         ExprC1 -= 1;
-        model.add(ExprC1 <= 0);
+        std::string nameVar = "J";
+        nameVar.append(std::to_string(j)).append("PerLoc");
+        model.add(IloRange(env,-IloInfinity,ExprC1,0.0,nameVar.c_str()));
         ExprC1.end();
     }
 
     // Constraints 2 : Each location can have only one job
-    for (auto const &batch: E) {
+    for (unsigned int indexBatch = 0; auto const &batch: E) {
         // loop over each position
         for (auto const &position: batch) {
             IloExpr ExprC2(env);
@@ -252,9 +252,12 @@ void LowerBoundMIP::initializeMIP() {
             for (unsigned int j = 0; j < N; ++j)
                 ExprC2 += x[position.first][j][position.second];
             ExprC2 -= 1;
-            model.add(ExprC2 <= 0);
+            std::string nameVar = "OneJobPerBatchB";
+            nameVar.append(std::to_string(indexBatch));
+            model.add(IloRange(env,-IloInfinity,ExprC2,0.0,nameVar.c_str()));
             ExprC2.end();
         }
+        ++indexBatch;
     }
 
     // Constraints 3 : Each location, except maybe the ones on first batch, are affected
@@ -267,8 +270,9 @@ void LowerBoundMIP::initializeMIP() {
 
         }
     }
-    ExprC3 -= int(nbLocation - E[0].size());
-    model.add(ExprC3 == 0);
+    ExprC3 -= int(instance->getMaxNbLocation() - E[0].size());
+    std::string nameVar = "EachBatchIsFilled";
+    model.add(IloRange(env,0.0,ExprC3,0.0,nameVar.c_str()));
     ExprC3.end();
 
     // Constraints 4 : Affect job on location in first batch. there are exactly |B1| + n - |E| jobs inside B1
@@ -278,8 +282,9 @@ void LowerBoundMIP::initializeMIP() {
         for (auto const &position: E[0])
             ExprC4 += x[position.first][j][position.second];
     }
-    ExprC4 -= int(E[0].size() + n - nbLocation);
-    model.add(ExprC4 == 0);
+    ExprC4 -= int(E[0].size() + n - instance->getMaxNbLocation());
+    nameVar = "FirstBatchMayNotFilled";
+    model.add(IloRange(env,0.0,ExprC4,0.0,nameVar.c_str()));
     ExprC4.end();
 
     // Constraints 5 : The processing times must be non-decreasing between 2 consecutive batches.
@@ -293,7 +298,10 @@ void LowerBoundMIP::initializeMIP() {
                     ExprC5 += (x[positionBatchH.first][j][positionBatchH.second] * int(instance->getListJobs()[j].getPi()));
                     ExprC5 -= (x[positionNextBathH.first][j][positionNextBathH.second] * int(instance->getListJobs()[j].getPi()));
                 }
-                model.add(ExprC5 <= 0);
+                nameVar = "PjIncreaseB[";
+                nameVar.append(std::to_string(positionBatchH.first)).append(",").append(std::to_string(positionBatchH.second)).append("]andB[")
+                .append(std::to_string(positionNextBathH.first)).append(",").append(std::to_string(positionNextBathH.second)).append("]");
+                model.add(IloRange(env,-IloInfinity,ExprC5,0.0,nameVar.c_str()));
                 ExprC5.end();
             }
         }
@@ -316,7 +324,9 @@ void LowerBoundMIP::initializeMIP() {
                 ExprC6 += (x[position.first][j][position.second] * pj / speed);
             }
             ExprC6 -= C[position.first][position.second];
-            model.add(ExprC6 == 0);
+            nameVar = "ComputeC[";
+            nameVar.append(std::to_string(position.first)).append(",").append(std::to_string(position.second)).append("]");
+            model.add(IloRange(env,0.0,ExprC6,0.0,nameVar.c_str()));
             ExprC6.end();
         }
     }
@@ -329,7 +339,9 @@ void LowerBoundMIP::initializeMIP() {
             for (unsigned int j = 0; j < N; ++j) {
                 IloExpr ExprC7(env);
                 ExprC7 += (t[position.first][j][position.second] - x[position.first][j][position.second]);
-                model.add(ExprC7 <= 0);
+                nameVar = "t[";
+                nameVar.append(std::to_string(position.first)).append(",").append(std::to_string(j)).append(",").append(std::to_string(position.second)).append("]CanBeTardy");
+                model.add(IloRange(env,-IloInfinity,ExprC7,0.0,nameVar.c_str()));
                 ExprC7.end();
             }
         }
@@ -350,7 +362,9 @@ void LowerBoundMIP::initializeMIP() {
             for (unsigned int j = 0; j < N; ++j)
                 ExprC8 -= (x[position.first][j][position.second] * int(instance->getListJobs()[j].getDi()));
             ExprC8 += C[position.first][position.second];
-            model.add(ExprC8 <= 0);
+            nameVar = "CheckDueDateC[";
+            nameVar.append(std::to_string(position.first)).append(",").append(std::to_string(position.second)).append("]");
+            model.add(IloRange(env,-IloInfinity,ExprC8,0.0,nameVar.c_str()));
             ExprC8.end();
         }
     }
@@ -410,7 +424,7 @@ void LowerBoundMIP::printOutput(std::string &fileOutputName, std::ofstream &outp
     outputFile.close();
 }
 
-void LowerBoundMIP::computeSolution() {
+bool LowerBoundMIP::computeSolution() {
     if (getStatus() != IloAlgorithm::Optimal)
         throw BiSchException("Try to compute a solution from lower bound, whereas the MIP have not Optimal Status");
     std::vector<std::tuple<unsigned int, unsigned int, unsigned int>> listOfMachineJobPositionTuple;
@@ -425,7 +439,6 @@ void LowerBoundMIP::computeSolution() {
             }
         }
     }
-
     // sort the jobs according to machine and the position
     std::sort(listOfMachineJobPositionTuple.begin(), listOfMachineJobPositionTuple.end(), [](auto &lhs, auto &rhs) {
         return std::get<0>(lhs) == std::get<0>(rhs) ? std::get<2>(lhs) < std::get<2>(rhs) : std::get<0>(lhs) < std::get<0>(rhs);
@@ -435,8 +448,10 @@ void LowerBoundMIP::computeSolution() {
         sol.add_job(idMachine, instance->getListJobs()[idJobs]);
     }
     sol.evaluate();
-    if (int(sol.getSumWjUj()) != int(getObjt())) {
-        sol.setSumWjUj(getObjt());
+    if (sol.feasible(instance)) {
+        *solution = std::move(sol);
+        return true;
     }
-    *solution = std::move(sol);
+    return false;
+
 }

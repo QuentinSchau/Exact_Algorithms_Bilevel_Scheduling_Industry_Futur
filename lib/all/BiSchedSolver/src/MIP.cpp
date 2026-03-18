@@ -333,8 +333,8 @@ void MIP::solveMIP() {
                 sol.add_job(idMachine, instance->getListJobs()[idJobs]);
             }
             sol.evaluate();
-            if (int(sol.getSumWjUj()) != int(getObjt())) {
-                std::cout << "ERROR with objective value = " << getObjt() << " and the one of solution from x_{i,j,k} = " << sol.getSumWjUj() << std::endl;
+            if (int(sol.getSumWjUj()) != std::round(getObjt())) {
+                std::cout << "ERROR with objective value = " << getObjt() << "rounded by " << std::round(getObjt()) << " and the one of solution from x_{i,j,k} = " << sol.getSumWjUj() << std::endl;
                 sol.setSumWjUj(getObjt());
             }
             *solution = std::move(sol);

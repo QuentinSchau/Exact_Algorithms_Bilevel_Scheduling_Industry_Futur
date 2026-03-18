@@ -177,8 +177,7 @@ def main(args):
                                 "maxNbCallHeuristic": maxNbCallHeuristic,
                                 "nbMinStateDP": nbMinStateDP,
                                 "thresholdSetCol": 0.8,
-                                "nbTimeNotUsed": 20,
-                                "timeLimits": 300
+                                "nbTimeNotUsed": 20
                             },
                             "timeLimits": timeLimit,
                             "instances": [
@@ -193,38 +192,11 @@ def main(args):
                             "scheme": "location",
                             "memorization": memo,
                             "LB_parameters": {
-                                "name": "CG",
-                                "verbose": 1,
-                                "debug": False,
-                                "gen_columns": useHeuristic,
-                                "maxNbCallHeuristic": maxNbCallHeuristic,
-                                "nbMinStateDP": nbMinStateDP,
-                                "thresholdSetCol": 0.8,
-                                "nbTimeNotUsed": 20,
-                                "timeLimits": 300
+                                "name": "LB_MIP",
+                                "verbose": verbose,
+                                "debug": False
                             },
                             "timeLimits": timeLimit,
-                            "instances": [
-                                {"path": f"{pathSaveInstance}/instance{i}{x}.txt"}
-                            ]
-                        })
-                    elif method == "BeamSearch":
-                        configSolve["solve"]["methods"].append({
-                            "name": "BeamSearch",
-                            "verbose": verbose,
-                            "beamSize": beamSize,
-                            "timeLimits": timeLimit,
-                            "recovering": recovering==1,
-                            "instances": [
-                                {"path": f"{pathSaveInstance}/instance{i}{x}.txt"}
-                            ]
-                        })
-                    elif method == "LocalSearch":
-                        configSolve["solve"]["methods"].append({
-                            "name": "LocalSearch",
-                            "verbose": verbose,
-                            "timeLimits": timeLimit,
-                            "predictor": False,
                             "instances": [
                                 {"path": f"{pathSaveInstance}/instance{i}{x}.txt"}
                             ]

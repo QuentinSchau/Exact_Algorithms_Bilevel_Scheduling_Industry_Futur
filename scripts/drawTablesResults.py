@@ -8,13 +8,13 @@ from functools import reduce
 import os
 
 # Configuration parameters
-N_VALUES = [40,50,60,70,80]
+N_VALUES = [40,50,60,70,80,90,100]
 M_VALUES = [2, 4]
 MAX_NB_CALL_HEURISTIC = 1  # max number of failing of heuristic we tolerate
-NB_MIN_COLUMN = 5  # the minimal number of column we generate with DP (generate several with backtracking)
+NB_MIN_COLUMN = 3  # the minimal number of column we generate with DP (generate several with backtracking)
 METHODS = ['MIP', 'BaB']
-STRATEGIES = ['depth-first', np.nan]
-LOWER_BOUNDS = ['Columns_Generation', np.nan]
+STRATEGIES = ['depth-first', pd.NA]
+LOWER_BOUNDS = ['Columns_Generation','LB_from_MIP', pd.NA]
 MEMORIZATION = True
 HEURISTIC = 0
 OUTPUT_FILE = "temp/test.tex"
@@ -31,9 +31,17 @@ def load_data(n_values, m_values):
             # Load MIP and BaB files for each (N, m) combination
             mip_path = BASE_PATH.format(n, f"{m}M_resultsMIP.csv")
             bab_path = BASE_PATH.format(n, f"{m}M_resultsBaB.csv")
-            dfs.append(pd.read_csv(mip_path, sep='\t'))
-            dfs.append(pd.read_csv(bab_path, sep='\t'))
-    return pd.concat(dfs, ignore_index=True)
+            dfs.append(pd.read_csv(mip_path, sep='\t',na_values=['null','nan']))
+            dfs.append(pd.read_csv(bab_path, sep='\t',na_values=['null','nan']))
+    df = pd.concat(dfs, ignore_index=True)
+    min_objective = df.groupby('InstanceName')['Objective'].min()
+    df['bestKnowObj'] = df['InstanceName'].map(min_objective)
+    df['GAP'] = df.apply(calculate_gap, axis=1)
+    df["$m$"] = df["m_Max"] + df["m_0"]
+    df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
+    df = df.replace(['null', 'nan', 'NULL'], pd.NA)
+    df = df.apply(pd.to_numeric, errors='ignore').convert_dtypes()
+    return df
 
 
 def calculate_gap(row):
@@ -197,10 +205,7 @@ def write_latex_table(f, df, caption=None):
 def main():
     # Load and preprocess data
     df = load_data(N_VALUES, M_VALUES)
-    min_objective = df.groupby('InstanceName')['Objective'].min()
-    df['bestKnowObj'] = df['InstanceName'].map(min_objective)
-    df['GAP'] = df.apply(calculate_gap, axis=1)
-    df["$m$"] = df["m_Max"] + df["m_0"]
+
     df.rename(columns={
         "m_Max": "$N_{max}$",
         "m_0": "$N_0$",

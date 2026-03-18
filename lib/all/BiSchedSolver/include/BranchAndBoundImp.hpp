@@ -427,13 +427,16 @@ inline void BranchAndBound::addNode(Node &node) {
         solFromNode.explainInfeasibility(instance);
         throw BiSchException("Select n job, unfeasible where as branching scheme make feasible");
     }
+
     double lowerBound = 0.0;
     if (lBStrategy == LB_MIP) {
         lowerBound = lbFromMIP.computeLB(node);
-        if (lbFromMIP.getStatus() == IloAlgorithm::Optimal && lowerBound < globalUB) {
-            globalUB = lowerBound;
-            lbFromMIP.computeSolution();
-            *solution = *lbFromMIP.getSolution();
+        if (lbFromMIP.computeSolution()) {
+            lowerBound = lbFromMIP.getSolution()->getSumWjUj();
+            if (lowerBound < globalUB) {
+                globalUB = lowerBound;
+                *solution = *lbFromMIP.getSolution();
+            }
         }
     } else {
         columnGeneration.solve(node);
@@ -469,7 +472,8 @@ inline void BranchAndBound::addNode(Node &node) {
 }
 
 inline void BranchAndBound::branchingLocation(NodeWithLB &nodeWithLb) {
-
+    if (nodeWithLb.node.id == 203)
+        std::cout << "";
     #if defined DEBUG_BaB && defined DEBUG_DOT
     std::ofstream dot(DEBUG_DOT, std::ios::app);
     #endif

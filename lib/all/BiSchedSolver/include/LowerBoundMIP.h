@@ -99,10 +99,11 @@ public:
     void parametrizeMIP();
 
     /**
-     * Method that computes the solution for the current model and returns it.
-     * This method is typically called after the model has been solved..
+     * Method that computes the solution for the current model and returns boolean to know if the solution is feasible.
+     * This method is typically called after the model has been solved.
+     * @return True if the solution is feasible false otherwise.
      */
-    void computeSolution();
+    bool computeSolution();
 
     /**
      * Method that saves the current MIP model to a file in LP format.
@@ -121,7 +122,7 @@ public:
      * The model has been solved
      * @return The value of the objective function value
      */
-    double getObjt() { return cplex.getBestObjValue(); }
+    double getObjt() { return cplex.getObjValue(); }
 
     IloAlgorithm::Status getStatus() { return cplex.getStatus(); }
 
@@ -185,17 +186,19 @@ void inline LowerBoundMIP::updateModelFromNode(Node &node) {
     listVarCompletionTimeModified.clear();
 
     // set upper bound and lower bound of the variable according the removed jobs from node
-
     for (size_t indexLoopEncodingRemoved = 0; indexLoopEncodingRemoved < instance->getNbJobs() - 1; ++indexLoopEncodingRemoved) {
-        auto &removedJob = instance->getListJobs()[indexLoopEncodingRemoved];
-        for (unsigned int i = 0; i < t.size(); ++i) {
-            for (unsigned int k = 0; k < t[i][removedJob.getIndex()].getSize(); ++k) {
-                t[i][removedJob.getIndex()][k].setBounds(0.0, 0.0);
-                x[i][removedJob.getIndex()][k].setBounds(0.0, 0.0);
-                listVarJobModified.emplace_back(i, removedJob.getIndex(), k);
+        if (node.isRemoved(indexLoopEncodingRemoved)) {
+            auto &removedJob = instance->getListJobs()[indexLoopEncodingRemoved];
+            for (unsigned int i = 0; i < t.size(); ++i) {
+                for (unsigned int k = 0; k < t[i][removedJob.getIndex()].getSize(); ++k) {
+                    t[i][removedJob.getIndex()][k].setBounds(0.0, 0.0);
+                    x[i][removedJob.getIndex()][k].setBounds(0.0, 0.0);
+                    listVarJobModified.emplace_back(i, removedJob.getIndex(), k);
+                }
             }
         }
     }
+
     // set upper bound and lower bound of the variable according the partial scheduling of the given node
     for (unsigned int indexLoopMachine = 0; indexLoopMachine < instance->getNbMachines(); ++indexLoopMachine) {
         auto &machineSchedule = node.getBlockStruc()[indexLoopMachine];

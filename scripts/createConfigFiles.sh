@@ -24,10 +24,10 @@
 # Define the range of values for the variables
 seed=0
 nbInstGen=10
-methods=("MIP" "BaB_CG")
-n_values=(40 50 60 70 80)
+methods=("MIP" "BaB_CG" "BaB_MIP")
+n_values=(40 50 60 70 80 90 100)
 frac_n=(0.25 0.5 0.75)
-gen_col=(0 1) # methods for generating column
+gen_col=(0 1) # use heuristic to generate columns 1 => use 0 => don't use
 maxNbCallHeuristic=(1 3 5)
 strategies=("depth-first" "breadth-first" "best-first") # Strategies to use for specific methods
 nbMinStateDP=(1 3 5)

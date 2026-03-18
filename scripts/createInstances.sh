@@ -3,7 +3,7 @@
 # Define the range of values for the variables
 seed=0
 nbInstGen=10
-n_values=(40 50 60 70 80)
+n_values=(40 50 60 70 80 90 100)
 frac_n=(0.25 0.5 0.75)
 idJobs=0
 
