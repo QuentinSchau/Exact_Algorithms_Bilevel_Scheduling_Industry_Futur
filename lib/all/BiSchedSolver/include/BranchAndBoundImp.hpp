@@ -472,8 +472,6 @@ inline void BranchAndBound::addNode(Node &node) {
 }
 
 inline void BranchAndBound::branchingLocation(NodeWithLB &nodeWithLb) {
-    if (nodeWithLb.node.id == 203)
-        std::cout << "";
     #if defined DEBUG_BaB && defined DEBUG_DOT
     std::ofstream dot(DEBUG_DOT, std::ios::app);
     #endif
