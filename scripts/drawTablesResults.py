@@ -11,7 +11,7 @@ import os
 N_VALUES = [40,50,60,70,80,90,100]
 M_VALUES = [2, 4]
 MAX_NB_CALL_HEURISTIC = 1  # max number of failing of heuristic we tolerate
-NB_MIN_COLUMN = 3  # the minimal number of column we generate with DP (generate several with backtracking)
+NB_MIN_COLUMN = 1  # the minimal number of column we generate with DP (generate several with backtracking)
 METHODS = ['MIP', 'BaB']
 STRATEGIES = ['depth-first', pd.NA]
 LOWER_BOUNDS = ['Columns_Generation','LB_from_MIP', pd.NA]
@@ -123,21 +123,23 @@ def generate_table(df, metric, only_OPT_instance=False):
         condition: 'optimal' or 'non_optimal'
         only_OPT_instance: compare only optimal solved instances
     """
-    groupByIndex = ['N', 'n',"$m$"]  # group index of the table by N and n
+    groupByIndex = ['N', 'n', "$m$"]  # group index of the table by N and n
+    listPairMethodLB = list(df[df['Method'].isin(METHODS) & df['LowerBound'].isin(LOWER_BOUNDS)][['Method', 'LowerBound']].drop_duplicates().itertuples(index=False, name=None))
     first_col = []
     if (only_OPT_instance):
         first_col += ["\\#OPT"]
-        first_col += reduce(lambda x, y: x + y, [list(repeat(x, 3)) for x in METHODS])
+        first_col += reduce(lambda x, y: x + y, [list(repeat(x[0] + "-" + str(x[1]), 3)) for x in listPairMethodLB])
     else:
-        first_col += reduce(lambda x, y: x + y, [list(repeat(x, 4)) for x in METHODS])
+        first_col += reduce(lambda x, y: x + y, [list(repeat(x[0] + "-" + str(x[1]), 4)) for x in listPairMethodLB])
     second_col = []
     if (only_OPT_instance):
         second_col += ["\\#OPT"]
         second_col += reduce(lambda x, y: x + y, list(
-            repeat([f"${metric}_{{min}}$", f"${metric}_{{avg}}$", f"${metric}_{{max}}$"], len(METHODS))))
+            repeat([f"${metric}_{{min}}$", f"${metric}_{{avg}}$", f"${metric}_{{max}}$"], len(listPairMethodLB))))
     else:
         second_col += reduce(lambda x, y: x + y, list(
-            repeat(["\\#OPT", f"${metric}_{{min}}$", f"${metric}_{{avg}}$", f"${metric}_{{max}}$"], len(METHODS))))
+            repeat(["\\#OPT", f"${metric}_{{min}}$", f"${metric}_{{avg}}$", f"${metric}_{{max}}$"],
+                   len(listPairMethodLB))))
 
     arrays = [np.array(first_col), np.array(second_col)]
     df_table = []
@@ -146,30 +148,36 @@ def generate_table(df, metric, only_OPT_instance=False):
         # sort the dataframe to keep the data with the right number of machines and all optimal solved instances
         df_all_opt = filter_dataframe(df, nbMachine)
         if (only_OPT_instance):
-            df_all_opt= df_all_opt.groupby('InstanceName').filter(lambda group: group['isOptimal'].all())
+            df_all_opt = df_all_opt.groupby('InstanceName').filter(lambda group: group['isOptimal'].all())
         else:
-            df_all_opt= df_all_opt.groupby('InstanceName').filter(lambda group: not group['isOptimal'].all())
-        if (only_OPT_instance and df_all_opt.groupby('InstanceName').filter(lambda group: group['Objective'].nunique()==1).shape != df_all_opt.shape):
+            df_all_opt = df_all_opt.groupby('InstanceName').filter(lambda group: not group['isOptimal'].all())
+        if (only_OPT_instance and df_all_opt.groupby('InstanceName').filter(
+                lambda group: group['Objective'].nunique() == 1).shape != df_all_opt.shape):
             raise ValueError(f"Instance indicate to solve optimaly have not same result with all methods")
         # We use the index of df_all_opt, i.e., (N,n) and we set the desired column with 'arrays'
         df_table_machine = pd.DataFrame(index=df_all_opt.groupby(groupByIndex).describe().index, columns=arrays)
         # Change the value of the first column, instead of an index, we set the number of machines
         df_table_machine.iloc[:, 0] = [nbMachine for _ in range(df_table_machine.shape[0])]
-        # define filter to select only instances with the right maxNbCallHeuristic and nbMinColumn
-        filterCondition = (df_all_opt["maxNbCallHeuristics"] == MAX_NB_CALL_HEURISTIC) & (
-                df_all_opt["NBMinColum"] == NB_MIN_COLUMN)
 
-        if (only_OPT_instance):
-            # compute the number of instance to solve for a set of parameters
-            nbInstanceToSolve = count_instances(df)
-            # use the number of optimal instance solve by the MIP, to get the number of optimal instance for both method
-            df_table_machine.iloc[:, 0] = df_all_opt[df_all_opt["Method"]=="MIP"].groupby(groupByIndex).describe().sort_index(level=groupByIndex).loc[:, (metric, 'count')].apply(lambda x: NbOPT(x, nbInstanceToSolve))
-
-        for i, method in enumerate(METHODS):
+        for i, pairMethodLB in enumerate(listPairMethodLB):
+            method = pairMethodLB[0]
+            lb = pairMethodLB[1]
             if (method != "MIP"):
-                filter = (df_all_opt["Method"] == method) & filterCondition
+                filter = (df_all_opt["Method"] == method) & (df_all_opt["LowerBound"] == lb)
+                if (lb == "Columns_Generation"):
+                    # define filter to select only instances with the right maxNbCallHeuristic and nbMinColumn
+                    filter &= ((df_all_opt["maxNbCallHeuristics"] == MAX_NB_CALL_HEURISTIC) & (
+                                df_all_opt["NBMinColum"] == NB_MIN_COLUMN))
             else:
                 filter = (df_all_opt["Method"] == method)
+            # count the number of optimal instance only the first time
+            if (only_OPT_instance and i == 0):
+                    # compute the number of instance to solve for a set of parameters
+                    nbInstanceToSolve = count_instances(df)
+                    # use the number of optimal instance solve by the MIP, to get the number of optimal instance for both method
+                    df_table_machine.iloc[:, 0] = df_all_opt[filter].groupby(
+                        groupByIndex).describe().sort_index(level=groupByIndex).loc[:, (metric, 'count')].apply(
+                        lambda x: NbOPT(x, nbInstanceToSolve))
             # for each method, compute the dataframe of statistics
             df_Method_stats = df_all_opt[filter].groupby(groupByIndex).describe()
 
@@ -180,13 +188,15 @@ def generate_table(df, metric, only_OPT_instance=False):
                 df_table_machine.iloc[:, (i * 3) + 3] = df_Method_stats.loc[:, (metric, 'max')]
             else:
                 indexSelection = df_all_opt[groupByIndex].drop_duplicates().set_index(groupByIndex).sort_index().index
-                nbOPT = df_all_opt[filter & (df_all_opt["isOptimal"] == True)].groupby(groupByIndex).count().sort_index(level=groupByIndex).iloc[:, 0].reindex(indexSelection, fill_value=0)
-                nbInstanceToSolve= df_all_opt[filter & (df_all_opt["Method"] == method)].groupby(groupByIndex).count().sort_index(level=groupByIndex).iloc[:, 0].reindex(indexSelection, fill_value=0)
+                nbOPT = df_all_opt[filter & (df_all_opt["isOptimal"] == True)].groupby(groupByIndex).count().sort_index(
+                    level=groupByIndex).iloc[:, 0].reindex(indexSelection, fill_value=0)
+                nbInstanceToSolve = df_all_opt[filter].groupby(groupByIndex).count().sort_index(
+                    level=groupByIndex).iloc[:, 0].reindex(indexSelection, fill_value=0)
                 df_table_machine.iloc[:, (i * 4) + 0] = [f"{int(x)}/{int(y)}" for x, y in zip(nbOPT, nbInstanceToSolve)]
                 df_table_machine.iloc[:, (i * 4) + 1] = df_Method_stats.loc[:, (metric, 'min')]
                 df_table_machine.iloc[:, (i * 4) + 2] = df_Method_stats.loc[:, (metric, 'mean')]
                 df_table_machine.iloc[:, (i * 4) + 3] = df_Method_stats.loc[:, (metric, 'max')]
-
+        print(f"Table for {nbMachine} machines is generated")
         df_table.append(df_table_machine)
 
     return pd.concat(df_table)
@@ -195,6 +205,7 @@ def generate_table(df, metric, only_OPT_instance=False):
 def write_latex_table(f, df, caption=None):
     """Write DataFrame as LaTeX table to file."""
     f.write(r"\begin{table}[ht!]" + "\n")
+    f.write(r"\fontsize{6}{7}\selectfont \setlength{\tabcolsep}{3pt}")
     if caption:
         f.write(r"\caption{" + caption + "}\n")
     f.write(df.to_latex(index=True, float_format=lambda x: str.format("{:.2f}", x), multirow=True, multicolumn=True,
@@ -224,7 +235,8 @@ def main():
         \begin{landscape}
         """)
         # Time tables
-        for condition in ['non-optimal','optimal']:
+        for condition in ['non-optimal', 'optimal']:
+            print(f"Generate table for the times for instances that are {condition}")
             df_table = generate_table(
                 df, 'Time', (condition == 'optimal')
             )
@@ -233,6 +245,7 @@ def main():
 
         # Node tables
         for condition in ['non-optimal', 'optimal']:
+            print(f"Generate table for the number of nodes for instances that are {condition}")
             df_table = generate_table(
                 df, 'NBNodes', (condition == 'optimal')
             )
@@ -240,7 +253,8 @@ def main():
                               f"NBNodes Statistics all {condition} for {MAX_NB_CALL_HEURISTIC} maxNbCall and {NB_MIN_COLUMN} nb min col)")
 
         # Gap table (only for non-optimal)
-        for condition in ['non-optimal', 'optimal']:
+        for condition in ['non-optimal']:
+            print(f"Generate table for the GAP for instances that are {condition}")
             df_table = generate_table(
                 df, 'GAP', (condition == 'optimal')
             )
@@ -249,6 +263,13 @@ def main():
 
         f.write(r"""\end{landscape}
                 \end{document}""")
+
+    with open(OUTPUT_FILE, 'r') as f:
+        content = f.read()
+
+    with open(OUTPUT_FILE, 'w') as f:
+        f.write(content.replace("MIP-<NA>", "$MIP$").replace("BaB-LB_from_MIP", "$BaB_{MIP}$").replace(
+            "BaB-Columns_Generation", "$BaB_{CG}$").replace("$Time", "$T").replace("$NBNodes", "$\mathcal{N}"))
 
 
 if __name__ == "__main__":
