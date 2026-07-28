@@ -72,6 +72,16 @@ for n in "${n_values[@]}"; do
                       --use-heuristic-gen-col ${genMethod} --maxNbCallHeuristic ${maxCallHeur} --nbMinStateDP $dp\
                       --config-file-name-solve config_solve/config_solve_N${n}_M4_${method}_${strategy}_memo_${memo}_genCol_${genMethod}_maxNbCalls_${maxCallHeur}_nbBackW_${dp}_ \
                       --path-save-instance /instances/N$n/instances/
+
+                    python3 "$(realpath $SCRIPT_DIR/generateInstances.py)" \
+                       --memorization $memo\
+                      --frac-of-n "${frac_n[@]}" --timeLimit $timeLimit \
+                      --m 5,5 --nb-instance-to-generate $nbInstGen \
+                      --n-list $n --output-result /instances/N$n/10M_ --methods $method \
+                      --strategy $strategy \
+                      --use-heuristic-gen-col ${genMethod} --maxNbCallHeuristic ${maxCallHeur} --nbMinStateDP $dp\
+                      --config-file-name-solve config_solve/config_solve_N${n}_M10_${method}_${strategy}_memo_${memo}_genCol_${genMethod}_maxNbCalls_${maxCallHeur}_nbBackW_${dp}_ \
+                      --path-save-instance /instances/N$n/instances/
                   done
                 else
                   echo "Running with method=$method, n=$n, heuristic=$genMethod, nb backward of dp=$dp and strategy=$strategy"
@@ -95,6 +105,16 @@ for n in "${n_values[@]}"; do
                     --strategy $strategy \
                     --use-heuristic-gen-col ${genMethod} --nbMinStateDP $dp \
                     --config-file-name-solve config_solve/config_solve_N${n}_M4_${method}_${strategy}_memo_${memo}_genCol_${genMethod}_nbBackW_${dp}_ \
+                    --path-save-instance /instances/N$n/instances/
+
+                  python3 "$(realpath $SCRIPT_DIR/generateInstances.py)" \
+                     --memorization $memo\
+                    --frac-of-n "${frac_n[@]}" --timeLimit $timeLimit \
+                    --m 5,5 --nb-instance-to-generate $nbInstGen \
+                    --n-list $n --output-result /instances/N$n/10M_ --methods $method \
+                    --strategy $strategy \
+                    --use-heuristic-gen-col ${genMethod} --nbMinStateDP $dp \
+                    --config-file-name-solve config_solve/config_solve_N${n}_M10_${method}_${strategy}_memo_${memo}_genCol_${genMethod}_nbBackW_${dp}_ \
                     --path-save-instance /instances/N$n/instances/
                 fi
               done
@@ -120,6 +140,15 @@ for n in "${n_values[@]}"; do
               --strategy $strategy \
               --config-file-name-solve config_solve/config_solve_N${n}_M4_${method}_${strategy}_memo_${memo}_ \
               --path-save-instance /instances/N$n/instances/
+
+            python3 "$(realpath $SCRIPT_DIR/generateInstances.py)" \
+              --memorization $memo\
+              --frac-of-n "${frac_n[@]}" --timeLimit $timeLimit \
+              --m 5,5 --nb-instance-to-generate $nbInstGen \
+              --n-list $n --output-result /instances/N$n/10M_ --methods $method \
+              --strategy $strategy \
+              --config-file-name-solve config_solve/config_solve_N${n}_M10_${method}_${strategy}_memo_${memo}_ \
+              --path-save-instance /instances/N$n/instances/
           fi
           echo "Completed for method=$method, n=$n, and strategy=$strategy"
         done
@@ -133,7 +162,6 @@ for n in "${n_values[@]}"; do
         --frac-of-n "${frac_n[@]}" --timeLimit $timeLimit \
         --m 1,1 --nb-instance-to-generate $nbInstGen \
         --n-list $n --output-result /instances/N$n/2M_ --methods $method \
-        --strategy depth-first \
         --config-file-name-solve config_solve/config_solve_N${n}_M2_${method}_ \
         --path-save-instance /instances/N$n/instances/
 
@@ -142,10 +170,15 @@ for n in "${n_values[@]}"; do
         --frac-of-n "${frac_n[@]}" --timeLimit $timeLimit \
         --m 2,2 --nb-instance-to-generate $nbInstGen \
         --n-list $n --output-result /instances/N$n/4M_ --methods $method \
-        --strategy depth-first \
         --config-file-name-solve config_solve/config_solve_N${n}_M4_${method}_ \
         --path-save-instance /instances/N$n/instances/
 
+      python3 "$(realpath $SCRIPT_DIR/generateInstances.py)" \
+        --frac-of-n "${frac_n[@]}" --timeLimit $timeLimit \
+        --m 5,5 --nb-instance-to-generate $nbInstGen \
+        --n-list $n --output-result /instances/N$n/10M_ --methods $method \
+        --config-file-name-solve config_solve/config_solve_N${n}_M10_${method}_ \
+        --path-save-instance /instances/N$n/instances/
       echo "Completed for method=$method and n=$n"
     fi
   done
