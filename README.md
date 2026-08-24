@@ -242,7 +242,13 @@ The main contributor is Quentin SCHAU. If you want to contribute to this project
 
 ## Authors and acknowledgment
 
-This code implements the problem and exact algorithm defined in several communication : 
+This code implements the problem and exact algorithm defined in several communications and the following article : 
+
+<ins>Article:</ins>
+
+Schau, Q., Ploton, O., T’kindt, V. et al. Solution of a bilevel optimistic scheduling problem on parallel machines. Annals of Operations Research (2026). https://doi.org/10.1007/s10479-026-07281-z
+
+<ins>Communications:</ins>
 
 [7]
 Quentin Schau, Olivier Ploton, Vincent T'kindt, Federico Della Croce, Han Hoogeveen, et al.. Solution of a bilevel scheduling problem on parallel machines. International Conference on Optimization and Decision Science (ODS), Sep 2025, Milano, Italy.
